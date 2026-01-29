@@ -10,44 +10,42 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// ⚡ HIGH-SPEED GROQ CONFIGURATION
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// ⚡ YOUR API KEY IS NOW EMBEDDED HERE
+const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-// FIX: Added 'excludeList' to prevent repeated questions
-async function generateAIQuestion(subject, difficulty, excludeList = []) {
-  console.log(`⚡ Groq is generating: ${difficulty} ${subject}... (Excluding ${excludeList.length} previous questions)`);
+async function generateAIQuestion(subject, topic, excludeList = []) {
+  const actualTopic = topic || "General Concepts";
+  console.log(`⚡ Groq is generating question for: ${subject} -> ${actualTopic}`);
   
-  // FIX: We pass the list of previous questions to the AI so it knows what to avoid
   const avoidText = excludeList.length > 0 ? `DO NOT use these previous questions: ${JSON.stringify(excludeList.slice(-5))}` : "";
 
-  const prompt = `Generate 1 unique high-quality multiple-choice question for ${subject}, difficulty ${difficulty}. 
+  const prompt = `Generate 1 unique, hard multiple-choice question for the Engineering Subject "${subject}", specifically focusing on the topic "${actualTopic}".
   ${avoidText}
   Return ONLY valid JSON with this exact structure:
   {
     "question": "Question text?",
     "options": ["A", "B", "C", "D"],
     "answer": "Exact correct option text",
-    "explanation": "Why it's correct"
+    "explanation": "Detailed explanation of the solution"
   }`;
 
   try {
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.8, // FIX: Increased randomness (was 0.5)
+      temperature: 0.7, 
       response_format: { type: "json_object" }
     });
-
     return JSON.parse(completion.choices[0].message.content);
   } catch (error) {
     console.error("❌ Groq Error:", error.message);
     return { 
-      question: `Fallback: What is the powerhouse of the cell? (${Math.floor(Math.random() * 1000)})`, // FIX: Added random number to fallback to force change
-      options: ["Mitochondria", "Nucleus", "Ribosome", "Plasma"], 
-      answer: "Mitochondria", 
-      explanation: "Groq is currently offline." 
+      question: `Fallback: Solve for x in x + 5 = 10 (Server Error: ${error.message})`, 
+      options: ["5", "10", "15", "0"], 
+      answer: "5", 
+      explanation: "Please check your API Key." 
     };
   }
 }
@@ -58,23 +56,20 @@ function endRound(roomCode) {
   room.timerEnded = true;
   clearInterval(room.interval);
   room.roundCount++;
-
   const leader = Object.entries(room.scores).reduce((a, b) => a[1] > b[1] ? a : b)[0] || "No one";
-
   io.to(roomCode).emit('round_result', { 
     results: room.results, 
     correctAnswer: room.currentQuestion.answer, 
     explanation: room.currentQuestion.explanation,
     scores: room.scores,
     leader: leader,
-    showSummary: room.roundCount % 5 === 0
+    isGameOver: room.roundCount >= 15 
   });
 }
 
 io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
-    // FIX: Added 'usedQuestions' array to track history
     if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, scores: {}, roundCount: 0, usedQuestions: [] };
     rooms[roomCode].users.push({ id: socket.id, username });
     rooms[roomCode].scores[username] = 0;
@@ -84,24 +79,16 @@ io.on('connection', (socket) => {
   socket.on('start_quiz', async ({ roomCode, subject, difficulty }) => {
     const room = rooms[roomCode];
     if (!room) return;
-
-    // FIX: Pass the history of used questions to the generator
-    const questionData = await generateAIQuestion(subject, difficulty, room.usedQuestions);
-    
-    // FIX: Save the new question to history
-    room.usedQuestions.push(questionData.question);
-
+    const topic = difficulty; 
+    const questionData = await generateAIQuestion(subject, topic, room.usedQuestions);
+    room.usedQuestions.push(questionData.question); 
     room.currentQuestion = questionData;
     room.results = [];
     room.ready = new Set();
     room.timerEnded = false;
-    room.timeLeft = 20;
-
+    room.timeLeft = 30; 
     io.to(roomCode).emit('new_question', { question: questionData.question, options: questionData.options });
-
-    // Clear any existing interval to prevent double-timers
     if (room.interval) clearInterval(room.interval);
-
     room.interval = setInterval(() => {
       room.timeLeft--;
       io.to(roomCode).emit('timer_update', room.timeLeft);
@@ -118,12 +105,6 @@ io.on('connection', (socket) => {
     room.results.push({ id: socket.id, username: user.username, isCorrect });
     socket.emit('answer_received');
     if (room.results.length >= room.users.length) endRound(roomCode);
-  });
-
-  socket.on('player_ready', ({ roomCode }) => {
-    const room = rooms[roomCode];
-    room.ready.add(socket.id);
-    io.to(roomCode).emit('ready_update', { readyCount: room.ready.size, totalGuests: room.users.length - 1 });
   });
 });
 
