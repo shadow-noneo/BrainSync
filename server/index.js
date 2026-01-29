@@ -15,11 +15,16 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const rooms = {}; 
 
-async function generateAIQuestion(subject, difficulty) {
-  console.log(`⚡ Groq (Llama 3 70B) is generating: ${difficulty} ${subject}...`);
+// FIX: Added 'excludeList' to prevent repeated questions
+async function generateAIQuestion(subject, difficulty, excludeList = []) {
+  console.log(`⚡ Groq is generating: ${difficulty} ${subject}... (Excluding ${excludeList.length} previous questions)`);
   
-  const prompt = `Generate 1 high-quality multiple-choice question for ${subject}, difficulty ${difficulty}. 
-  Return ONLY valid JSON with this exact structure (no markdown, no preamble):
+  // FIX: We pass the list of previous questions to the AI so it knows what to avoid
+  const avoidText = excludeList.length > 0 ? `DO NOT use these previous questions: ${JSON.stringify(excludeList.slice(-5))}` : "";
+
+  const prompt = `Generate 1 unique high-quality multiple-choice question for ${subject}, difficulty ${difficulty}. 
+  ${avoidText}
+  Return ONLY valid JSON with this exact structure:
   {
     "question": "Question text?",
     "options": ["A", "B", "C", "D"],
@@ -31,7 +36,7 @@ async function generateAIQuestion(subject, difficulty) {
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.5,
+      temperature: 0.8, // FIX: Increased randomness (was 0.5)
       response_format: { type: "json_object" }
     });
 
@@ -39,7 +44,7 @@ async function generateAIQuestion(subject, difficulty) {
   } catch (error) {
     console.error("❌ Groq Error:", error.message);
     return { 
-      question: `Fallback: What is the powerhouse of the cell?`, 
+      question: `Fallback: What is the powerhouse of the cell? (${Math.floor(Math.random() * 1000)})`, // FIX: Added random number to fallback to force change
       options: ["Mitochondria", "Nucleus", "Ribosome", "Plasma"], 
       answer: "Mitochondria", 
       explanation: "Groq is currently offline." 
@@ -69,7 +74,8 @@ function endRound(roomCode) {
 io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
-    if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, scores: {}, roundCount: 0 };
+    // FIX: Added 'usedQuestions' array to track history
+    if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, scores: {}, roundCount: 0, usedQuestions: [] };
     rooms[roomCode].users.push({ id: socket.id, username });
     rooms[roomCode].scores[username] = 0;
     io.to(roomCode).emit('update_room', { users: rooms[roomCode].users, hostId: rooms[roomCode].hostId, scores: rooms[roomCode].scores });
@@ -77,7 +83,14 @@ io.on('connection', (socket) => {
 
   socket.on('start_quiz', async ({ roomCode, subject, difficulty }) => {
     const room = rooms[roomCode];
-    const questionData = await generateAIQuestion(subject, difficulty);
+    if (!room) return;
+
+    // FIX: Pass the history of used questions to the generator
+    const questionData = await generateAIQuestion(subject, difficulty, room.usedQuestions);
+    
+    // FIX: Save the new question to history
+    room.usedQuestions.push(questionData.question);
+
     room.currentQuestion = questionData;
     room.results = [];
     room.ready = new Set();
@@ -85,6 +98,9 @@ io.on('connection', (socket) => {
     room.timeLeft = 20;
 
     io.to(roomCode).emit('new_question', { question: questionData.question, options: questionData.options });
+
+    // Clear any existing interval to prevent double-timers
+    if (room.interval) clearInterval(room.interval);
 
     room.interval = setInterval(() => {
       room.timeLeft--;
