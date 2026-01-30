@@ -17,30 +17,29 @@ const rooms = {};
 
 async function generateAIQuestion(subject, topic, marks, excludeList = []) {
   const actualTopic = topic || "General Concepts";
-  
   console.log(`⚡ Generating [${marks} Marks] question for: ${actualTopic}`);
-  
   const avoidText = excludeList.length > 0 ? `DO NOT use these previous questions: ${JSON.stringify(excludeList.slice(-5))}` : "";
 
-  // 🔴 STRICT DOUBLE BACKSLASH INSTRUCTION
+  // 🔴 STRICT PROMPT: Enforce $ delimiters
   const prompt = `Act as a strict Engineering Mathematics Professor.
   Generate 1 challenging Multiple Choice Question (MCQ) worth ${marks} marks.
   Subject: ${subject}
   Topic: ${actualTopic}
   
-  CRITICAL LATEX INSTRUCTION:
-  - You MUST use DOUBLE BACKSLASHES for all LaTeX commands.
-  - Correct: \\\\int, \\\\frac, \\\\infty, \\\\sqrt, \\\\cdot
-  - Incorrect: \\int, \\frac 
+  CRITICAL LATEX INSTRUCTIONS:
+  1. Wrap ALL math expressions in single dollar signs ($). 
+     - Correct: $x^2 + y^2$
+     - Incorrect: \\(x^2 + y^2\\)
+  2. Use DOUBLE BACKSLASHES for all commands (\\\\frac, \\\\int).
   
   Context: This should be a "Previous Year Question" (PYQ) style problem.
   ${avoidText}
 
   Return ONLY valid JSON with this exact structure:
   {
-    "question": "The question text (use \\\\frac etc)",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "answer": "Exact correct option text (must match one option exactly)",
+    "question": "Question text with $math$",
+    "options": ["$Option A$", "$Option B$", "$Option C$", "$Option D$"],
+    "answer": "Exact correct option text",
     "explanation": "Step-by-step solution."
   }`;
 
@@ -63,18 +62,32 @@ async function generateAIQuestion(subject, topic, marks, excludeList = []) {
   }
 }
 
+function endRound(roomCode) {
+  const room = rooms[roomCode];
+  if (!room || room.timerEnded) return;
+  room.timerEnded = true;
+  clearInterval(room.interval);
+  room.roundCount++;
+
+  const leader = Object.entries(room.scores).reduce((a, b) => a[1] > b[1] ? a : b)[0] || "No one";
+
+  io.to(roomCode).emit('round_result', { 
+    results: room.results, 
+    correctAnswer: room.currentQuestion.answer, 
+    explanation: room.currentQuestion.explanation,
+    scores: room.scores,
+    leader: leader,
+    isGameOver: room.roundCount >= 15 
+  });
+}
+
 io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
     if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, scores: {}, roundCount: 0, usedQuestions: [] };
-    
-    // Remove old instance of this user if exists to prevent duplicates
-    rooms[roomCode].users = rooms[roomCode].users.filter(u => u.username !== username);
-    
     rooms[roomCode].users.push({ id: socket.id, username });
     rooms[roomCode].scores[username] = 0;
-    
-    io.to(roomCode).emit('update_room', { users: rooms[roomCode].users, scores: rooms[roomCode].scores });
+    io.to(roomCode).emit('update_room', { users: rooms[roomCode].users, hostId: rooms[roomCode].hostId, scores: rooms[roomCode].scores });
   });
 
   socket.on('start_quiz', async ({ roomCode, subject, difficulty, marks }) => {
@@ -84,48 +97,28 @@ io.on('connection', (socket) => {
     const questionData = await generateAIQuestion(subject, topic, marks, room.usedQuestions);
     room.usedQuestions.push(questionData.question); 
     room.currentQuestion = questionData;
-    
-    // Reset round state
-    room.results = []; 
+    room.results = [];
+    room.ready = new Set();
     room.timerEnded = false;
     room.timeLeft = 60; 
-
     io.to(roomCode).emit('new_question', { question: questionData.question, options: questionData.options });
-
     if (room.interval) clearInterval(room.interval);
     room.interval = setInterval(() => {
       room.timeLeft--;
       io.to(roomCode).emit('timer_update', room.timeLeft);
-      if (room.timeLeft <= 0) {
-        clearInterval(room.interval);
-        // If time runs out, show answer to everyone
-        io.to(roomCode).emit('round_result', { 
-           correctAnswer: room.currentQuestion.answer, 
-           explanation: room.currentQuestion.explanation 
-        });
-      }
+      if (room.timeLeft <= 0) endRound(roomCode);
     }, 1000);
   });
 
-  // 🚀 INSTANT FEEDBACK UPDATE
   socket.on('submit_answer', ({ roomCode, answer }) => {
     const room = rooms[roomCode];
-    if (!room) return;
-
+    if (!room || room.timerEnded || room.results.find(r => r.id === socket.id)) return;
     const isCorrect = room.currentQuestion.answer === answer;
-    
-    // Send result ONLY to the user who clicked (Don't wait for others)
-    socket.emit('round_result', { 
-      correctAnswer: room.currentQuestion.answer, 
-      explanation: room.currentQuestion.explanation,
-      isCorrect: isCorrect
-    });
-  });
-  
-  // Cleanup on disconnect
-  socket.on('disconnect', () => {
-    console.log("User disconnected:", socket.id);
-    // Optional: Clean up empty rooms or users here
+    const user = room.users.find(u => u.id === socket.id);
+    if (isCorrect) room.scores[user.username] += 10;
+    room.results.push({ id: socket.id, username: user.username, isCorrect });
+    socket.emit('answer_received');
+    if (room.results.length >= room.users.length) endRound(roomCode);
   });
 });
 
