@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import 'katex/dist/katex.min.css'; 
-import { InlineMath, BlockMath } from 'react-katex';
+import { InlineMath } from 'react-katex';
 import './App.css';
 
 // 🔗 CONNECTED TO YOUR RENDER SERVER
@@ -45,6 +45,7 @@ function App() {
   const [timer, setTimer] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentTopic, setCurrentTopic] = useState(null); 
+  const [selectedSubject, setSelectedSubject] = useState(null); // Controls Dropdown
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
@@ -68,7 +69,8 @@ function App() {
   const joinRoom = () => {
     if (username && roomCode) {
       socket.emit('join_room', { roomCode, username });
-      setMenuOpen(true);
+      // Only show menu AFTER joining
+      setMenuOpen(true); 
     }
   };
 
@@ -95,43 +97,70 @@ function App() {
     }
   };
 
+  // Toggle Subject Dropdown
+  const toggleSubject = (subject) => {
+    if (selectedSubject === subject) {
+      setSelectedSubject(null); // Close if already open
+    } else {
+      setSelectedSubject(subject); // Open new
+    }
+  };
+
   return (
     <div className="app-container">
-      <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
+      
+      {/* ☰ MENU BUTTON (HIDDEN ON LOGIN SCREEN) */}
+      {gameState !== 'menu' && (
+        <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
+      )}
 
+      {/* 📂 SIDEBAR (FIXED ALIGNMENT) */}
       {menuOpen && (
         <div className="sidebar">
           <div className="sidebar-header">
-            <h3>Maths-II Syllabus</h3>
+            <h3>Syllabus</h3>
             <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
           </div>
+          
           <div className="subject-list">
             {Object.keys(SYLLABUS).map((subject) => (
-              <div key={subject}>
-                <div className="subtopic-list">
-                    {SYLLABUS[subject].map((module) => (
-                      <button 
-                        key={module.id} 
-                        className="subtopic-btn"
-                        onClick={() => startTopicQuiz(module.prompt)}
-                      >
-                        {module.name}
-                      </button>
-                    ))}
-                </div>
+              <div key={subject} className="subject-group">
+                {/* MAIN SUBJECT BUTTON */}
+                <button 
+                  className="subject-btn" 
+                  onClick={() => toggleSubject(subject)}
+                >
+                  {subject} {selectedSubject === subject ? '▼' : '▶'}
+                </button>
+
+                {/* MODULES (ONLY SHOW IF SELECTED) */}
+                {selectedSubject === subject && (
+                  <div className="subtopic-list">
+                      {SYLLABUS[subject].map((module) => (
+                        <button 
+                          key={module.id} 
+                          className="subtopic-btn"
+                          onClick={() => startTopicQuiz(module.prompt)}
+                        >
+                          {module.name}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* 🎮 MAIN GAME AREA */}
       <div className="game-area">
-        <h1 className="logo">🧠 BrainSync <span style={{fontSize:'0.5em', color:'#4caf50'}}>Pro</span></h1>
+        {/* LOGO (REMOVED PRO) */}
+        <h1 className="logo">🧠 BrainSync</h1>
         
         {gameState === 'loading' && (
            <div className="card">
              <h2>🔄 Generating Math...</h2>
-             <p>Solving equations...</p>
              <div className="loader"></div>
            </div>
         )}
