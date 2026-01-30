@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { SYLLABUS } from './syllabus';
 import './App.css';
 
-// 🔗 CONNECT TO SERVER (Make sure this matches your Vercel/Render setup)
-const socket = io.connect("https://brainsync-nqgkl61j1-s-projects-222f23b8.vercel.app"); 
+// 🔗 CONNECT TO SERVER 
+const socket = io.connect("https://brainsync-phi.vercel.app"); 
+
+// 📚 SYLLABUS DATA (Directly inside here to prevent errors)
+const SYLLABUS = {
+  "Applied Mathematics-II": [
+    { id: "m1", name: "Module 1: Differential Eq (1st Order)", prompt: "First Order First Degree Differential Equations, Exact equations, and Bernoulli's equation" },
+    { id: "m2", name: "Module 2: LDE (Higher Order)", prompt: "Higher Order Linear Differential Equations with Constant Coefficients, Method of Variation of Parameters, Cauchy's & Legendre's" },
+    { id: "m3", name: "Module 3: Beta, Gamma & DUIS", prompt: "Beta and Gamma Functions, properties, and Differentiation Under Integral Sign (DUIS)" },
+    { id: "m4", name: "Module 4: Double Integration", prompt: "Double Integration, Change of Order, Evaluation in Polar Coordinates" },
+    { id: "m5", name: "Module 5: Triple Integration", prompt: "Triple Integration, Cartesian/Cylindrical/Spherical coordinates, Area and Mass calculation" },
+    { id: "m6", name: "Module 6: Numerical Methods", prompt: "Numerical solutions of ODE (Euler, Runge-Kutta 4th order) and Numerical Integration (Trapezoidal, Simpson's 1/3rd & 3/8th)" }
+  ]
+};
 
 function App() {
   const [gameState, setGameState] = useState('menu'); // menu, playing, result
@@ -12,25 +23,25 @@ function App() {
   const [username, setUsername] = useState('');
   
   const [question, setQuestion] = useState(null);
-  const [roundResult, setRoundResult] = useState(null); // Stores the answer/explanation
+  const [roundResult, setRoundResult] = useState(null); 
   
   const [timer, setTimer] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
-  const [currentTopic, setCurrentTopic] = useState(null); // Remembers topic for "Next Question"
+  const [currentTopic, setCurrentTopic] = useState(null); 
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
     
     socket.on('new_question', (data) => {
       setQuestion(data);
-      setRoundResult(null); // Clear previous result
+      setRoundResult(null); 
       setGameState('playing');
     });
 
     socket.on('timer_update', (time) => setTimer(time));
     
-    // 🟢 NEW: Instead of alert(), we save data to show a nice UI
+    // 🟢 NO POPUP: This saves the result to the screen instead
     socket.on('round_result', (data) => {
       setRoundResult(data);
       setGameState('result');
@@ -42,14 +53,15 @@ function App() {
   const joinRoom = () => {
     if (username && roomCode) {
       socket.emit('join_room', { roomCode, username });
-      alert("Joined! Open the menu (☰) to pick a module.");
+      // Removed the alert here too, just a console log
+      console.log("Joined Room");
+      setMenuOpen(true); // Auto-open menu
     }
   };
 
   const startTopicQuiz = (topicPrompt) => {
-    setCurrentTopic(topicPrompt); // Save topic for "Next Question" button
-    
-    const marks = Math.floor(Math.random() * 4) + 5; // Random marks 5-8
+    setCurrentTopic(topicPrompt); 
+    const marks = Math.floor(Math.random() * 4) + 5; 
     
     socket.emit('start_quiz', { 
       roomCode, 
@@ -60,9 +72,10 @@ function App() {
     setMenuOpen(false);
   };
 
-  // Helper to trigger next question
   const nextQuestion = () => {
     if (currentTopic) {
+      // 🟡 Set Loading State
+      setGameState('loading');
       startTopicQuiz(currentTopic);
     }
   };
@@ -70,20 +83,19 @@ function App() {
   return (
     <div className="app-container">
       {/* ☰ MENU BUTTON */}
-      <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Syllabus</button>
+      <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
 
       {/* 📂 SIDEBAR */}
       {menuOpen && (
         <div className="sidebar">
           <div className="sidebar-header">
-            <h3>Select Module</h3>
+            <h3>Maths-II Syllabus</h3>
             <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
           </div>
           
           <div className="subject-list">
             {Object.keys(SYLLABUS).map((subject) => (
               <div key={subject}>
-                <div className="subject-title">{subject}</div>
                 <div className="subtopic-list">
                     {SYLLABUS[subject].map((module) => (
                       <button 
@@ -103,9 +115,15 @@ function App() {
 
       {/* 🎮 GAME AREA */}
       <div className="game-area">
-        <h1 className="logo">🧠 BrainSync</h1>
+        <h1 className="logo">🧠 BrainSync v2.0</h1>
         
-        {/* 1. LOGIN SCREEN */}
+        {gameState === 'loading' && (
+           <div className="card">
+             <h2>🔄 Generating Question...</h2>
+             <p>The AI is writing a new problem for you.</p>
+           </div>
+        )}
+
         {gameState === 'menu' && (
           <div className="card login-box">
             <h2>Student Login</h2>
@@ -115,7 +133,6 @@ function App() {
           </div>
         )}
 
-        {/* 2. QUIZ SCREEN */}
         {gameState === 'playing' && question && (
           <div className="card quiz-box">
             <div className="timer-badge">⏳ {timer}s</div>
@@ -130,7 +147,6 @@ function App() {
           </div>
         )}
 
-        {/* 3. RESULT SCREEN (Replaces the Pop-up!) */}
         {gameState === 'result' && roundResult && (
           <div className="card result-box">
             <h2>📝 Solution</h2>
