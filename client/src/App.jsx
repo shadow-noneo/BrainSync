@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import 'katex/dist/katex.min.css'; // Import Math Styles
+import 'katex/dist/katex.min.css'; 
 import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
 
-// 🔗 CONNECT TO SERVER
-const socket = io.connect("https://brainsync-phi.vercel.app"); 
+// 🔗 CONNECTED TO YOUR RENDER SERVER
+const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🧠 MATH RENDERER COMPONENT
-// This splits text by "$" to render math parts correctly
+// 🧠 MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
   const parts = text.split('$');
   return (
     <span>
       {parts.map((part, index) => {
-        // Even indices are text, Odd indices are Math
         return index % 2 === 0 ? (
           <span key={index}>{part}</span>
         ) : (
@@ -26,7 +24,7 @@ const MathText = ({ text }) => {
   );
 };
 
-// 📚 SYLLABUS (Mumbai University - Applied Maths II)
+// 📚 SYLLABUS
 const SYLLABUS = {
   "Applied Mathematics-II": [
     { id: "m1", name: "Module 1: Diff Eq (1st Order)", prompt: "Exact differential Equations, Equations reducible to exact form, Linear differential equations, Bernoulli's equation" },
@@ -39,13 +37,11 @@ const SYLLABUS = {
 };
 
 function App() {
-  const [gameState, setGameState] = useState('menu'); // menu, loading, playing, result
+  const [gameState, setGameState] = useState('menu'); 
   const [roomCode, setRoomCode] = useState('');
   const [username, setUsername] = useState('');
-  
   const [question, setQuestion] = useState(null);
   const [roundResult, setRoundResult] = useState(null); 
-  
   const [timer, setTimer] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentTopic, setCurrentTopic] = useState(null); 
@@ -61,7 +57,6 @@ function App() {
 
     socket.on('timer_update', (time) => setTimer(time));
     
-    // 🟢 NO ALERT: We switch state to 'result' to show the nice card
     socket.on('round_result', (data) => {
       setRoundResult(data);
       setGameState('result');
@@ -79,8 +74,8 @@ function App() {
 
   const startTopicQuiz = (topicPrompt) => {
     setCurrentTopic(topicPrompt); 
-    setGameState('loading'); // Show loading screen
-    setMenuOpen(false); // Close menu
+    setGameState('loading'); 
+    setMenuOpen(false); 
     
     const marks = Math.floor(Math.random() * 4) + 5; 
     
@@ -95,24 +90,21 @@ function App() {
   const nextQuestion = () => {
     if (currentTopic) {
       setGameState('loading');
-      setRoundResult(null); // Clear old result immediately
+      setRoundResult(null); 
       startTopicQuiz(currentTopic);
     }
   };
 
   return (
     <div className="app-container">
-      {/* ☰ MENU BUTTON */}
       <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
 
-      {/* 📂 SIDEBAR */}
       {menuOpen && (
         <div className="sidebar">
           <div className="sidebar-header">
             <h3>Maths-II Syllabus</h3>
             <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
           </div>
-          
           <div className="subject-list">
             {Object.keys(SYLLABUS).map((subject) => (
               <div key={subject}>
@@ -133,7 +125,6 @@ function App() {
         </div>
       )}
 
-      {/* 🎮 GAME AREA */}
       <div className="game-area">
         <h1 className="logo">🧠 BrainSync <span style={{fontSize:'0.5em', color:'#4caf50'}}>Pro</span></h1>
         
@@ -157,16 +148,12 @@ function App() {
         {gameState === 'playing' && question && (
           <div className="card quiz-box">
             <div className="timer-badge">⏳ {timer}s</div>
-            
-            {/* RENDER QUESTION WITH MATH */}
             <h3 className="question-text">
               <MathText text={question.question} />
             </h3>
-
             <div className="options-grid">
               {question.options.map((opt, i) => (
                 <button key={i} className="option-btn" onClick={() => socket.emit('submit_answer', { roomCode, answer: opt })}>
-                  {/* RENDER OPTIONS WITH MATH */}
                   <MathText text={opt} />
                 </button>
               ))}
@@ -177,21 +164,18 @@ function App() {
         {gameState === 'result' && roundResult && (
           <div className="card result-box">
             <h2>📝 Solution</h2>
-            
             <div className="result-answer">
               <strong>Correct Answer:</strong>
               <div className="math-block">
                  <MathText text={roundResult.correctAnswer} />
               </div>
             </div>
-
             <div className="result-explanation">
               <strong>Explanation:</strong>
               <div className="math-explanation">
                 <MathText text={roundResult.explanation} />
               </div>
             </div>
-
             <button onClick={nextQuestion} className="primary-btn next-btn">
               Next Question ➡️
             </button>
