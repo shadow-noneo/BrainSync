@@ -1,62 +1,30 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
+#root { width: 100%; max-width: 1280px; margin: 0 auto; padding: 2rem; text-align: center; }
+.app-container { display: flex; flex-direction: column; align-items: center; width: 100%; color: white; }
+.card { background: #2a2a2a; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 600px; text-align: left; }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
+/* Math Styling */
+.katex { font-size: 1.1em; color: #a6e3a1; } /* Greenish math text */
+.math-block { background: #1e1e1e; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4caf50; }
+.math-explanation { font-size: 0.9em; line-height: 1.6; color: #ddd; }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Buttons & Inputs */
+input { padding: 10px; margin: 10px 0; width: 100%; border-radius: 5px; border: none; background: #333; color: white; }
+.primary-btn { background: #646cff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
+.primary-btn:hover { background: #535bf2; }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
+/* Quiz Grid */
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.option-btn { background: #333; color: white; padding: 15px; border: 1px solid #444; border-radius: 8px; cursor: pointer; transition: 0.2s; text-align: left; }
+.option-btn:hover { background: #444; border-color: #646cff; transform: translateY(-2px); }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-/* Sidebar Styles */
-.menu-btn { position: absolute; top: 15px; left: 15px; font-size: 18px; padding: 10px; background: #646cff; border: none; cursor: pointer; color: white; z-index: 1000; border-radius: 5px; }
-.sidebar { position: fixed; top: 0; left: 0; width: 300px; height: 100vh; background: #1a1a1a; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.8); z-index: 999; display: flex; flex-direction: column; overflow-y: auto; text-align: left; }
-.sidebar-header { display: flex; justify-content: space-between; align-items: center; color: white; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
-.subject-btn { width: 100%; text-align: left; padding: 15px; background: #333; color: #fff; border: none; margin-bottom: 5px; cursor: pointer; font-weight: bold; border-radius: 4px; }
-.subtopic-list { display: flex; flex-direction: column; padding-left: 10px; border-left: 2px solid #646cff; margin-top: 5px; }
-.subtopic-btn { text-align: left; padding: 10px; background: #2a2a2a; color: #ccc; border: none; margin-bottom: 2px; font-size: 13px; cursor: pointer; border-radius: 0 4px 4px 0; }
+/* Sidebar */
+.menu-btn { position: fixed; top: 20px; left: 20px; font-size: 18px; background: #222; border: 1px solid #444; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 1000; }
+.sidebar { position: fixed; top: 0; left: 0; width: 300px; height: 100%; background: #1a1a1a; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.8); z-index: 999; overflow-y: auto; }
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+.subtopic-btn { display: block; width: 100%; text-align: left; padding: 10px; background: #2a2a2a; border: none; margin-bottom: 5px; color: #ccc; cursor: pointer; font-size: 14px; border-radius: 4px; }
 .subtopic-btn:hover { background: #646cff; color: white; }
-.close-btn { background: none; border: none; color: #ff4444; font-size: 24px; cursor: pointer; }/* Lobby Styles */
-.lobby-box { background: #2a2a2a; padding: 30px; border-radius: 10px; width: 100%; max-width: 400px; text-align: center; }
-.user-list { margin: 20px 0; border: 1px solid #444; padding: 10px; border-radius: 5px; background: #222; }
-.user-tag { padding: 8px; border-bottom: 1px solid #333; color: #fff; }
-.user-tag:last-child { border-bottom: none; }
-.status-message { color: #aaa; font-style: italic; margin-top: 15px; animation: pulse 1.5s infinite; }
 
-@keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
-}
+/* Utilities */
+.timer-badge { background: #ff4757; color: white; display: inline-block; padding: 5px 10px; border-radius: 20px; font-weight: bold; margin-bottom: 15px; }
+.loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
