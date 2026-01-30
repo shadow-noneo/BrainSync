@@ -7,17 +7,24 @@ import './App.css';
 // 🔗 CONNECT TO SERVER
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🧠 SMART MATH RENDERER (Now fixes \( \) brackets!)
+// 🧠 INTELLIGENT MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
 
-  // 1. Clean the text: Replace \( and \) with $ for consistency
-  // 2. Also fix common AI errors like "Box" brackets \[ \]
-  let cleanText = text
-    .replace(/\\\(/g, '$')  // Replace \( with $
-    .replace(/\\\)/g, '$')  // Replace \) with $
-    .replace(/\\\[/g, '$')  // Replace \[ with $
-    .replace(/\\\]/g, '$'); // Replace \] with $
+  let cleanText = text;
+
+  // ⚡ THE FIX: If text has a backslash (\) but NO dollars ($), wrap it in dollars automatically!
+  // This forces options like "\frac{pi}{2}" to render as Math.
+  if (cleanText.includes('\\') && !cleanText.includes('$')) {
+    cleanText = `$${cleanText}$`;
+  }
+
+  // Standard cleanup for other AI brackets
+  cleanText = cleanText
+    .replace(/\\\(/g, '$')  
+    .replace(/\\\)/g, '$')  
+    .replace(/\\\[/g, '$')  
+    .replace(/\\\]/g, '$'); 
 
   const parts = cleanText.split('$');
 
