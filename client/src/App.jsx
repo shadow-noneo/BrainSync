@@ -4,16 +4,27 @@ import 'katex/dist/katex.min.css';
 import { InlineMath } from 'react-katex';
 import './App.css';
 
-// 🔗 CONNECTED TO YOUR RENDER SERVER
+// 🔗 CONNECT TO SERVER
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🧠 MATH RENDERER
+// 🧠 SMART MATH RENDERER (Now fixes \( \) brackets!)
 const MathText = ({ text }) => {
   if (!text) return null;
-  const parts = text.split('$');
+
+  // 1. Clean the text: Replace \( and \) with $ for consistency
+  // 2. Also fix common AI errors like "Box" brackets \[ \]
+  let cleanText = text
+    .replace(/\\\(/g, '$')  // Replace \( with $
+    .replace(/\\\)/g, '$')  // Replace \) with $
+    .replace(/\\\[/g, '$')  // Replace \[ with $
+    .replace(/\\\]/g, '$'); // Replace \] with $
+
+  const parts = cleanText.split('$');
+
   return (
     <span>
       {parts.map((part, index) => {
+        // Even = Text, Odd = Math
         return index % 2 === 0 ? (
           <span key={index}>{part}</span>
         ) : (
@@ -162,7 +173,6 @@ function App() {
             <h2>Student Login</h2>
             <input placeholder="Enter Name" onChange={(e) => setUsername(e.target.value)} />
             <input placeholder="Room Code (e.g. 101)" onChange={(e) => setRoomCode(e.target.value)} />
-            {/* 🔴 FIX: Changed Text Here */}
             <button onClick={joinRoom} className="primary-btn">Start Quiz</button>
           </div>
         )}
