@@ -45,7 +45,7 @@ function App() {
   const [timer, setTimer] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentTopic, setCurrentTopic] = useState(null); 
-  const [selectedSubject, setSelectedSubject] = useState(null); // Controls Dropdown
+  const [selectedSubject, setSelectedSubject] = useState(null);
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
@@ -69,7 +69,6 @@ function App() {
   const joinRoom = () => {
     if (username && roomCode) {
       socket.emit('join_room', { roomCode, username });
-      // Only show menu AFTER joining
       setMenuOpen(true); 
     }
   };
@@ -97,24 +96,21 @@ function App() {
     }
   };
 
-  // Toggle Subject Dropdown
   const toggleSubject = (subject) => {
     if (selectedSubject === subject) {
-      setSelectedSubject(null); // Close if already open
+      setSelectedSubject(null);
     } else {
-      setSelectedSubject(subject); // Open new
+      setSelectedSubject(subject);
     }
   };
 
   return (
     <div className="app-container">
       
-      {/* ☰ MENU BUTTON (HIDDEN ON LOGIN SCREEN) */}
       {gameState !== 'menu' && (
         <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
       )}
 
-      {/* 📂 SIDEBAR (FIXED ALIGNMENT) */}
       {menuOpen && (
         <div className="sidebar">
           <div className="sidebar-header">
@@ -125,7 +121,6 @@ function App() {
           <div className="subject-list">
             {Object.keys(SYLLABUS).map((subject) => (
               <div key={subject} className="subject-group">
-                {/* MAIN SUBJECT BUTTON */}
                 <button 
                   className="subject-btn" 
                   onClick={() => toggleSubject(subject)}
@@ -133,7 +128,6 @@ function App() {
                   {subject} {selectedSubject === subject ? '▼' : '▶'}
                 </button>
 
-                {/* MODULES (ONLY SHOW IF SELECTED) */}
                 {selectedSubject === subject && (
                   <div className="subtopic-list">
                       {SYLLABUS[subject].map((module) => (
@@ -153,9 +147,7 @@ function App() {
         </div>
       )}
 
-      {/* 🎮 MAIN GAME AREA */}
       <div className="game-area">
-        {/* LOGO (REMOVED PRO) */}
         <h1 className="logo">🧠 BrainSync</h1>
         
         {gameState === 'loading' && (
@@ -170,7 +162,8 @@ function App() {
             <h2>Student Login</h2>
             <input placeholder="Enter Name" onChange={(e) => setUsername(e.target.value)} />
             <input placeholder="Room Code (e.g. 101)" onChange={(e) => setRoomCode(e.target.value)} />
-            <button onClick={joinRoom} className="primary-btn">Join Class</button>
+            {/* 🔴 FIX: Changed Text Here */}
+            <button onClick={joinRoom} className="primary-btn">Start Quiz</button>
           </div>
         )}
 
