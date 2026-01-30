@@ -40,3 +40,23 @@
 .read-the-docs {
   color: #888;
 }
+/* Sidebar Styles */
+.menu-btn { position: absolute; top: 15px; left: 15px; font-size: 18px; padding: 10px; background: #646cff; border: none; cursor: pointer; color: white; z-index: 1000; border-radius: 5px; }
+.sidebar { position: fixed; top: 0; left: 0; width: 300px; height: 100vh; background: #1a1a1a; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.8); z-index: 999; display: flex; flex-direction: column; overflow-y: auto; text-align: left; }
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; color: white; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
+.subject-btn { width: 100%; text-align: left; padding: 15px; background: #333; color: #fff; border: none; margin-bottom: 5px; cursor: pointer; font-weight: bold; border-radius: 4px; }
+.subtopic-list { display: flex; flex-direction: column; padding-left: 10px; border-left: 2px solid #646cff; margin-top: 5px; }
+.subtopic-btn { text-align: left; padding: 10px; background: #2a2a2a; color: #ccc; border: none; margin-bottom: 2px; font-size: 13px; cursor: pointer; border-radius: 0 4px 4px 0; }
+.subtopic-btn:hover { background: #646cff; color: white; }
+.close-btn { background: none; border: none; color: #ff4444; font-size: 24px; cursor: pointer; }/* Lobby Styles */
+.lobby-box { background: #2a2a2a; padding: 30px; border-radius: 10px; width: 100%; max-width: 400px; text-align: center; }
+.user-list { margin: 20px 0; border: 1px solid #444; padding: 10px; border-radius: 5px; background: #222; }
+.user-tag { padding: 8px; border-bottom: 1px solid #333; color: #fff; }
+.user-tag:last-child { border-bottom: none; }
+.status-message { color: #aaa; font-style: italic; margin-top: 15px; animation: pulse 1.5s infinite; }
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
