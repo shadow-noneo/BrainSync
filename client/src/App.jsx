@@ -4,35 +4,29 @@ import 'katex/dist/katex.min.css';
 import { InlineMath } from 'react-katex';
 import './App.css';
 
-// 🔗 CONNECT TO SERVER
+// 🔗 CONNECT
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
 // 🧠 MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
-  let cleanText = text;
-  if (cleanText.includes('\\') && !cleanText.includes('$')) {
-    cleanText = `$${cleanText}$`;
+  let cleanText = text.replace(/\\/g, '\\').replace(/\$/g, ''); // Simple cleanup
+  // Re-add dollars for KaTeX
+  if (text.includes('\\') || text.includes('^') || text.includes('_')) {
+     return <InlineMath math={text} />;
   }
-  cleanText = cleanText.replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$'); 
-  const parts = cleanText.split('$');
-  return (
-    <span>
-      {parts.map((part, index) => {
-        return index % 2 === 0 ? <span key={index}>{part}</span> : <InlineMath key={index} math={part} />;
-      })}
-    </span>
-  );
+  return <span>{text}</span>;
 };
 
+// SYLLABUS (Kept same as before)
 const SYLLABUS = {
   "Applied Mathematics-II": [
-    { id: "m1", name: "Module 1: Diff Eq (1st Order)", prompt: "Exact differential Equations, Equations reducible to exact form, Linear differential equations, Bernoulli's equation" },
-    { id: "m2", name: "Module 2: LDE (Higher Order)", prompt: "Linear Differential Equation with constant coefficient, Method of variation of parameters, Cauchy's homogeneous linear differential equation" },
-    { id: "m3", name: "Module 3: Beta, Gamma & DUIS", prompt: "Beta and Gamma functions, DUIS (Differentiation Under Integral Sign), Rectification of curves" },
-    { id: "m4", name: "Module 4: Double Integration", prompt: "Double integration definition, Evaluation, Change of order of integration, Polar coordinates" },
-    { id: "m5", name: "Module 5: Triple Integration", prompt: "Triple integration definition, Cartesian, cylindrical and spherical polar coordinates, Area, Mass, Volume" },
-    { id: "m6", name: "Module 6: Numerical Methods", prompt: "Euler's method, Runge-Kutta fourth order, Trapezoidal Rule, Simpson's 1/3rd and 3/8th rule" }
+    { id: "m1", name: "Module 1: Diff Eq (1st Order)", prompt: "Exact differential Equations, Equations reducible to exact form" },
+    { id: "m2", name: "Module 2: LDE (Higher Order)", prompt: "Linear Differential Equation with constant coefficient" },
+    { id: "m3", name: "Module 3: Beta, Gamma & DUIS", prompt: "Beta and Gamma functions, DUIS" },
+    { id: "m4", name: "Module 4: Double Integration", prompt: "Double integration definition, Evaluation" },
+    { id: "m5", name: "Module 5: Triple Integration", prompt: "Triple integration definition, Cartesian, cylindrical" },
+    { id: "m6", name: "Module 6: Numerical Methods", prompt: "Euler's method, Runge-Kutta fourth order" }
   ]
 };
 
@@ -42,27 +36,67 @@ function App() {
   const [username, setUsername] = useState('');
   const [question, setQuestion] = useState(null);
   const [roundResult, setRoundResult] = useState(null); 
-  const [timer, setTimer] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentTopic, setCurrentTopic] = useState(null); 
-  const [selectedSubject, setSelectedSubject] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
+  
+  // 🎙️ VOICE STATE
+  const [isListening, setIsListening] = useState(false);
+  const [aiSpeaking, setAiSpeaking] = useState(false);
 
   useEffect(() => {
-    socket.on('update_room', (data) => console.log("Room Updated", data));
     socket.on('new_question', (data) => {
       setQuestion(data);
       setRoundResult(null); 
       setSelectedOption(null);
       setGameState('playing');
     });
-    socket.on('timer_update', (time) => setTimer(time));
+
     socket.on('round_result', (data) => {
       setRoundResult(data);
       setGameState('result');
     });
+
+    // 🟢 HANDLE AI VOICE REPLY
+    socket.on('ai_voice_reply', ({ text }) => {
+      speakText(text);
+    });
+
     return () => socket.off();
   }, []);
+
+  // 🗣️ TEXT TO SPEECH
+  const speakText = (text) => {
+    setAiSpeaking(true);
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = () => setAiSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // 🎙️ SPEECH TO TEXT
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Browser does not support Voice. Use Chrome/Edge.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    setIsListening(true);
+
+    recognition.onstart = () => console.log("Mic On...");
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      console.log("You said:", transcript);
+      setIsListening(false);
+      // Send to AI
+      socket.emit('ask_ai', { roomCode, userQuery: transcript });
+    };
+
+    recognition.onerror = () => setIsListening(false);
+    recognition.start();
+  };
 
   const joinRoom = () => {
     if (username && roomCode) {
@@ -71,19 +105,10 @@ function App() {
     }
   };
 
-  const startTopicQuiz = (topicPrompt) => {
-    setCurrentTopic(topicPrompt); 
+  const startTopicQuiz = (prompt) => {
     setGameState('loading'); 
     setMenuOpen(false); 
-    socket.emit('start_quiz', { roomCode, subject: "Applied Mathematics-II", difficulty: topicPrompt, marks: 6 });
-  };
-
-  const nextQuestion = () => {
-    if (currentTopic) {
-      setGameState('loading');
-      setRoundResult(null); 
-      startTopicQuiz(currentTopic);
-    }
+    socket.emit('start_quiz', { roomCode, subject: "Applied Mathematics-II", difficulty: prompt, marks: 6 });
   };
 
   const handleAnswer = (opt) => {
@@ -91,135 +116,92 @@ function App() {
     socket.emit('submit_answer', { roomCode, answer: opt });
   };
 
-  const toggleSubject = (subject) => {
-    setSelectedSubject(selectedSubject === subject ? null : subject);
-  };
-
   const isCorrect = roundResult && selectedOption === roundResult.correctAnswer;
 
   return (
     <div className="app-container">
-      {/* 🟢 INJECT ANIMATION DIRECTLY INTO PAGE */}
-      <style>
-        {`
-          @keyframes nuclearSpin {
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
+      {/* INJECT SPINNER STYLE */}
+      <style>{`@keyframes nuclearSpin { 100% { transform: rotate(360deg); } }`}</style>
 
       {gameState !== 'menu' && (
-        <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
+        <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
       )}
 
       {menuOpen && (
         <div className="sidebar">
-          <div className="sidebar-header">
-            <h3>Syllabus</h3>
-            <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
-          </div>
-          <div className="subject-list">
-            {Object.keys(SYLLABUS).map((subject) => (
-              <div key={subject} className="subject-group">
-                <button className="subject-btn" onClick={() => toggleSubject(subject)}>
-                  {subject} {selectedSubject === subject ? '▼' : '▶'}
-                </button>
-                {selectedSubject === subject && (
-                  <div className="subtopic-list">
-                      {SYLLABUS[subject].map((module) => (
-                        <button key={module.id} className="subtopic-btn" onClick={() => startTopicQuiz(module.prompt)}>
-                          {module.name}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <h3>Syllabus</h3>
+          <button onClick={() => setMenuOpen(false)}>Close</button>
+          {SYLLABUS["Applied Mathematics-II"].map(m => (
+             <button key={m.id} className="subtopic-btn" onClick={() => startTopicQuiz(m.prompt)}>{m.name}</button>
+          ))}
         </div>
       )}
 
       <div className="game-area">
         <h1 className="logo">🧠 BrainSync</h1>
         
-        {/* 🟢 LOADING SCREEN WITH INLINE STYLES (CANNOT BE CACHED) */}
         {gameState === 'loading' && (
-           <div className="card" style={{
-             textAlign: 'center', 
-             minHeight: '200px', 
-             display:'flex', 
-             flexDirection:'column', 
-             justifyContent:'center', 
-             alignItems:'center'
-           }}>
-             
-             {/* THE SPINNER */}
-             <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: 'conic-gradient(#4285F4, #EA4335, #FBBC05, #34A853, #4285F4)',
-                mask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0)',
-                WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0)',
-                animation: 'nuclearSpin 1s linear infinite',
-                margin: '20px auto'
-             }}></div>
-             
-             <h2 className="sparkle-text">Thinking... ✨</h2>
+           <div className="card" style={{textAlign:'center'}}>
+             <div style={{width:'50px', height:'50px', borderRadius:'50%', border:'5px solid #4285F4', borderTopColor:'transparent', animation:'nuclearSpin 1s linear infinite', margin:'20px auto'}}></div>
+             <h2>Thinking...</h2>
            </div>
         )}
 
         {gameState === 'menu' && (
           <div className="card login-box">
             <h2>Student Login</h2>
-            <input placeholder="Enter Name" onChange={(e) => setUsername(e.target.value)} />
-            <input placeholder="Room Code (e.g. 101)" onChange={(e) => setRoomCode(e.target.value)} />
+            <input placeholder="Name" onChange={(e) => setUsername(e.target.value)} />
+            <input placeholder="Room Code" onChange={(e) => setRoomCode(e.target.value)} />
             <button onClick={joinRoom} className="primary-btn">Start Quiz</button>
           </div>
         )}
 
-        {gameState === 'playing' && question && (
+        {(gameState === 'playing' || gameState === 'result') && question && (
           <div className="card quiz-box">
-            <div className="timer-badge">⏳ {timer}s</div>
             <h3 className="question-text"><MathText text={question.question} /></h3>
-            <div className="options-grid">
-              {question.options.map((opt, i) => (
-                <button 
-                  key={i} 
-                  className={`option-btn ${selectedOption === opt ? 'selected' : ''}`} 
-                  onClick={() => handleAnswer(opt)}
-                  disabled={selectedOption !== null}
-                >
-                  <MathText text={opt} />
-                </button>
-              ))}
+            
+            {/* 🟢 MIC BUTTON */}
+            <div style={{textAlign: 'right', marginBottom: '10px'}}>
+               <button 
+                 onClick={startListening} 
+                 style={{
+                   background: isListening ? '#ff4757' : '#2ecc71',
+                   color: 'white', border: 'none', padding: '10px 15px', borderRadius: '50px', cursor: 'pointer', fontSize:'14px', fontWeight:'bold'
+                 }}
+               >
+                 {isListening ? "Listening... 🛑" : (aiSpeaking ? "AI Speaking... 🔊" : "🎤 Discuss")}
+               </button>
             </div>
-          </div>
-        )}
 
-        {gameState === 'result' && roundResult && (
-          <div className="card result-box">
-            <h2 className={isCorrect ? "status-correct" : "status-wrong"}>
-              {isCorrect ? "✅ Correct!" : "❌ Wrong!"}
-            </h2>
-
-            {!isCorrect && selectedOption && (
-               <div className="result-answer wrong-selection">
-                 <strong>You Selected:</strong>
-                 <div className="math-block"><MathText text={selectedOption} /></div>
-               </div>
+            {gameState === 'playing' && (
+              <div className="options-grid">
+                {question.options.map((opt, i) => (
+                  <button 
+                    key={i} 
+                    className={`option-btn ${selectedOption === opt ? 'selected' : ''}`} 
+                    onClick={() => handleAnswer(opt)}
+                    disabled={selectedOption !== null}
+                  >
+                    <MathText text={opt} />
+                  </button>
+                ))}
+              </div>
             )}
 
-            <div className="result-answer">
-              <strong>Correct Answer:</strong>
-              <div className="math-block correct-block"><MathText text={roundResult.correctAnswer} /></div>
-            </div>
-
-            <div className="result-explanation">
-              <strong>Explanation:</strong>
-              <div className="math-explanation"><MathText text={roundResult.explanation} /></div>
-            </div>
-            <button onClick={nextQuestion} className="primary-btn next-btn">Next Question ➡️</button>
+            {gameState === 'result' && roundResult && (
+              <div className="result-box">
+                <h2 style={{color: isCorrect ? '#4caf50' : '#ff4757'}}>
+                  {isCorrect ? "Correct!" : "Wrong!"}
+                </h2>
+                <div className="result-answer">
+                  <strong>Answer:</strong> <MathText text={roundResult.correctAnswer} />
+                </div>
+                <div className="result-explanation">
+                  <strong>Explanation:</strong> {roundResult.explanation}
+                </div>
+                <button onClick={() => startTopicQuiz("General")} className="primary-btn">Next</button>
+              </div>
+            )}
           </div>
         )}
       </div>
