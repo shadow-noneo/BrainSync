@@ -7,7 +7,7 @@ import './App.css';
 // 🔗 CONNECT TO SERVER
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🧠 INTELLIGENT MATH RENDERER
+// 🧠 MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
   let cleanText = text;
@@ -47,22 +47,26 @@ function App() {
   const [currentTopic, setCurrentTopic] = useState(null); 
   const [selectedSubject, setSelectedSubject] = useState(null);
   
-  // 🟢 NEW: Track which option was clicked
+  // Track User Selection
   const [selectedOption, setSelectedOption] = useState(null);
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
+    
     socket.on('new_question', (data) => {
       setQuestion(data);
       setRoundResult(null); 
-      setSelectedOption(null); // Reset selection for new question
+      setSelectedOption(null); // Reset for new question
       setGameState('playing');
     });
+
     socket.on('timer_update', (time) => setTimer(time));
+    
     socket.on('round_result', (data) => {
       setRoundResult(data);
       setGameState('result');
     });
+
     return () => socket.off();
   }, []);
 
@@ -89,7 +93,6 @@ function App() {
   };
 
   const handleAnswer = (opt) => {
-    // 🟢 VISUAL FEEDBACK: Set selected option immediately
     setSelectedOption(opt);
     socket.emit('submit_answer', { roomCode, answer: opt });
   };
@@ -97,6 +100,9 @@ function App() {
   const toggleSubject = (subject) => {
     setSelectedSubject(selectedSubject === subject ? null : subject);
   };
+
+  // Helper to check if user was right
+  const isCorrect = roundResult && selectedOption === roundResult.correctAnswer;
 
   return (
     <div className="app-container">
@@ -137,7 +143,6 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign: 'center'}}>
              <h2>🔄 Generating Math...</h2>
-             {/* 🟢 RENAMED SPINNER TO FORCE UPDATE */}
              <div className="super-spinner"></div>
            </div>
         )}
@@ -159,10 +164,9 @@ function App() {
               {question.options.map((opt, i) => (
                 <button 
                   key={i} 
-                  // 🟢 APPLY 'SELECTED' CLASS IF CLICKED
                   className={`option-btn ${selectedOption === opt ? 'selected' : ''}`} 
                   onClick={() => handleAnswer(opt)}
-                  disabled={selectedOption !== null} // Disable clicking others
+                  disabled={selectedOption !== null}
                 >
                   <MathText text={opt} />
                 </button>
@@ -171,13 +175,29 @@ function App() {
           </div>
         )}
 
+        {/* 🟢 NEW RESULT SCREEN WITH FEEDBACK */}
         {gameState === 'result' && roundResult && (
           <div className="card result-box">
-            <h2>📝 Solution</h2>
+            
+            {/* 1. BIG STATUS BADGE */}
+            <h2 className={isCorrect ? "status-correct" : "status-wrong"}>
+              {isCorrect ? "✅ Correct!" : "❌ Wrong!"}
+            </h2>
+
+            {/* 2. SHOW WHAT YOU PICKED (If Wrong) */}
+            {!isCorrect && selectedOption && (
+               <div className="result-answer wrong-selection">
+                 <strong>You Selected:</strong>
+                 <div className="math-block"><MathText text={selectedOption} /></div>
+               </div>
+            )}
+
+            {/* 3. SHOW CORRECT ANSWER */}
             <div className="result-answer">
               <strong>Correct Answer:</strong>
-              <div className="math-block"><MathText text={roundResult.correctAnswer} /></div>
+              <div className="math-block correct-block"><MathText text={roundResult.correctAnswer} /></div>
             </div>
+
             <div className="result-explanation">
               <strong>Explanation:</strong>
               <div className="math-explanation"><MathText text={roundResult.explanation} /></div>
