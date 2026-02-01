@@ -33,48 +33,39 @@ input { padding: 12px; margin: 10px 0; width: 100%; border-radius: 5px; border: 
 .subtopic-btn { text-align: left; padding: 10px; background: transparent; color: #ccc; border: none; margin-bottom: 2px; font-size: 14px; cursor: pointer; border-radius: 4px; }
 .timer-badge { background: #ff4757; color: white; display: inline-block; padding: 5px 10px; border-radius: 20px; font-weight: bold; margin-bottom: 15px; }
 
-/* ✨ GEMINI STYLE SPINNER (The Real Deal) */
-.gemini-spinner {
+/* 🚀 THE GALAXY LOADER (NUCLEAR FIX) */
+.galaxy-loader {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  position: relative;
   margin: 30px auto;
+  position: relative;
   
-  /* This creates the smooth 4-color gradient blend */
-  background: conic-gradient(#4285F4, #EA4335, #FBBC05, #34A853, #4285F4);
+  /* 1. RESET ANY OLD BORDERS */
+  border: none !important; 
   
-  animation: spin 1.5s linear infinite;
+  /* 2. THE GOOGLE/GEMINI GRADIENT */
+  background: conic-gradient(#4285F4, #EA4335, #FBBC05, #34A853, #4285F4) !important;
   
-  /* This creates the "hole" in the middle to make it a ring */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* 3. CUT OUT THE MIDDLE (Creates the Ring) */
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0);
+  
+  animation: galaxy-spin 1s linear infinite;
 }
 
-/* This is the black circle inside that hides the center */
-.gemini-spinner::after {
-  content: '';
-  position: absolute;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #2a2a2a; /* Matches the card color */
-}
-
-/* Sparkle in the middle (Optional) */
-.sparkle-icon {
-  position: absolute;
-  z-index: 10;
-  font-size: 24px;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes spin {
+@keyframes galaxy-spin {
   100% { transform: rotate(360deg); }
 }
 
+/* Sparkle Animation */
+.sparkle-text {
+  animation: pulse 1.5s ease-in-out infinite;
+  font-size: 1.2em;
+  color: #a6e3a1;
+  margin-top: 10px;
+}
 @keyframes pulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.1); }
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }

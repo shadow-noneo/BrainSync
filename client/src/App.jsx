@@ -137,13 +137,16 @@ function App() {
       <div className="game-area">
         <h1 className="logo">🧠 BrainSync</h1>
         
-        {/* 🟢 NEW LOADING SCREEN (Gemini Style) */}
+        {/* 🟢 NUCLEAR LOADING SCREEN FIX */}
         {gameState === 'loading' && (
-           <div className="card" style={{textAlign: 'center', minHeight: '200px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
-             <h2>BrainSync is thinking...</h2>
-             <div className="gemini-spinner">
-                <div className="sparkle-icon">✨</div>
-             </div>
+           <div className="card" style={{textAlign: 'center', minHeight: '200px', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center'}}>
+             
+             {/* The New Galaxy Spinner */}
+             <div className="galaxy-loader"></div>
+             
+             {/* Text with Sparkle */}
+             <h2 className="sparkle-text">BrainSync is thinking... ✨</h2>
+           
            </div>
         )}
 
