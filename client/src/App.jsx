@@ -46,12 +46,16 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentTopic, setCurrentTopic] = useState(null); 
   const [selectedSubject, setSelectedSubject] = useState(null);
+  
+  // 🟢 NEW: Track which option was clicked
+  const [selectedOption, setSelectedOption] = useState(null);
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
     socket.on('new_question', (data) => {
       setQuestion(data);
       setRoundResult(null); 
+      setSelectedOption(null); // Reset selection for new question
       setGameState('playing');
     });
     socket.on('timer_update', (time) => setTimer(time));
@@ -82,6 +86,12 @@ function App() {
       setRoundResult(null); 
       startTopicQuiz(currentTopic);
     }
+  };
+
+  const handleAnswer = (opt) => {
+    // 🟢 VISUAL FEEDBACK: Set selected option immediately
+    setSelectedOption(opt);
+    socket.emit('submit_answer', { roomCode, answer: opt });
   };
 
   const toggleSubject = (subject) => {
@@ -127,8 +137,8 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign: 'center'}}>
              <h2>🔄 Generating Math...</h2>
-             {/* 🛑 RENAMED CLASS HERE TO FORCE UPDATE */}
-             <div className="ai-spinner"></div>
+             {/* 🟢 RENAMED SPINNER TO FORCE UPDATE */}
+             <div className="super-spinner"></div>
            </div>
         )}
 
@@ -147,7 +157,13 @@ function App() {
             <h3 className="question-text"><MathText text={question.question} /></h3>
             <div className="options-grid">
               {question.options.map((opt, i) => (
-                <button key={i} className="option-btn" onClick={() => socket.emit('submit_answer', { roomCode, answer: opt })}>
+                <button 
+                  key={i} 
+                  // 🟢 APPLY 'SELECTED' CLASS IF CLICKED
+                  className={`option-btn ${selectedOption === opt ? 'selected' : ''}`} 
+                  onClick={() => handleAnswer(opt)}
+                  disabled={selectedOption !== null} // Disable clicking others
+                >
                   <MathText text={opt} />
                 </button>
               ))}
