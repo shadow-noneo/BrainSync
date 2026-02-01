@@ -14,7 +14,7 @@ const groq = new Groq({ apiKey: "gsk_tUTKGPGNqcdUDRkSeX9TWGdyb3FYoLsVpkXvxZ3fgPB
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v6.1 - INDEX BASED MATCHING (100% ACCURACY)");
+console.log("🚀 SERVER v7.0 - GROUP AI & STABLE AUDIO");
 
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
@@ -24,32 +24,14 @@ async function generateAIQuestion(subject, topic) {
   try {
     const res = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile", response_format: { type: "json_object" } });
     const data = JSON.parse(res.choices[0].message.content);
-    
-    // 🟢 CRITICAL FIX: Find the numeric index of the answer
-    // We sanitize strings to ensure they match
     const cleanOpts = data.options.map(o => o.trim());
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
-
-    // 🛡️ Fallback: If AI hallucinated an answer not in options, force Option A
-    if (correctIndex === -1) {
-        correctIndex = 0;
-        data.options[0] = data.answer; // Force match
-    }
-
-    data.correctIndex = correctIndex; // Store the NUMBER (0-3)
+    if (correctIndex === -1) { correctIndex = 0; data.options[0] = data.answer; }
+    data.correctIndex = correctIndex;
     data.marks = marks;
     return data;
-  } catch (e) { 
-      return { 
-          question: "Error. Try Next.", 
-          options: ["Error", "Try Again", "Next", "Skip"], 
-          answer: "Next", 
-          correctIndex: 2, 
-          explanation: "Server Error", 
-          marks 
-      }; 
-  }
+  } catch (e) { return { question: "Error. Try Next.", options: ["Error", "Try Again", "Next", "Skip"], answer: "Next", correctIndex: 2, explanation: "Server Error", marks }; }
 }
 
 async function solveDoubt(q, d) {
@@ -64,7 +46,6 @@ io.on('connection', (socket) => {
     if (rooms[roomCode]) {
       socket.join(roomCode);
       const room = rooms[roomCode];
-      
       const userIndex = room.users.findIndex(u => u.username === username);
       if (userIndex !== -1) room.users[userIndex].id = socket.id;
       else room.users.push({ id: socket.id, username });
@@ -165,14 +146,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 🟢 FIXED SUBMIT ANSWER: Uses Index Comparison
   socket.on('submit_answer', ({ roomCode, answerIndex, username }) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
-    
-    // Compare NUMBERS, not strings
     const isCorrect = (answerIndex === room.currentQuestion.correctIndex);
-    
     if (isCorrect) {
        room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5);
        io.to(roomCode).emit('update_scores', room.scores);
@@ -181,13 +158,7 @@ io.on('connection', (socket) => {
         room.canMoveOn = true;
         if(room.hostId) io.to(room.hostId).emit('unlock_host');
     }
-    
-    socket.emit('round_result', { 
-        correctIndex: room.currentQuestion.correctIndex, // Send the Truth Index
-        correctAnswer: room.currentQuestion.answer, 
-        explanation: room.currentQuestion.explanation, 
-        isCorrect 
-    });
+    socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect });
   });
 
   socket.on('host_action', ({ roomCode, action }) => {
@@ -209,11 +180,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  // 🟢 AI BROADCAST: Send to WHOLE ROOM
   socket.on('ask_ai', async ({ roomCode, userQuery }) => {
     const room = rooms[roomCode];
     if (!room) return;
+    
+    // Notify room that AI is thinking
+    io.to(roomCode).emit('ai_thinking', { asker: socket.id });
+
     const ans = await solveDoubt(room.currentQuestion.question, userQuery);
-    socket.emit('ai_voice_reply', { text: ans });
+    
+    // Broadcast answer to EVERYONE
+    io.to(roomCode).emit('ai_voice_reply', { text: ans });
   });
 });
 
