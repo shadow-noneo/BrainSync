@@ -8,13 +8,12 @@ const Groq = require("groq-sdk");
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 }); // Allow audio blobs
+const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 }); // Allows big images
 
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-// 🧠 AI GENERATOR
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
   const marks = possibleMarks[Math.floor(Math.random() * possibleMarks.length)];
@@ -43,7 +42,7 @@ async function solveDoubt(q, d) {
 io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
-    if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, currentQuestion: null, scores: {}, history: [], historyIndex: -1, questionLimit: -1, questionCount: 0 };
+    if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, currentQuestion: null, scores: {}, history: [], historyIndex: -1, questionLimit: -1, questionCount: 0, messages: [] };
     
     const room = rooms[roomCode];
     room.users.push({ id: socket.id, username });
@@ -54,13 +53,20 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('update_scores', room.scores);
   });
 
-  // 🎙️ VOICE CHAT RELAY
+  // 💬 CHAT & IMAGE RELAY
+  socket.on('send_message', ({ roomCode, username, text, image }) => {
+    const room = rooms[roomCode];
+    if (room) {
+        const msgData = { username, text, image, time: new Date().toLocaleTimeString() };
+        // room.messages.push(msgData); // Optional: Store history
+        io.to(roomCode).emit('receive_message', msgData);
+    }
+  });
+
   socket.on('send_audio', ({ roomCode, audioBlob, username }) => {
-    // Send to everyone EXCEPT sender
     socket.to(roomCode).emit('receive_audio', { audioBlob, username });
   });
 
-  // ⚠️ ANTI-CHEAT ALERT
   socket.on('tab_switch', ({ roomCode, username }) => {
     const room = rooms[roomCode];
     if (room && room.hostId) io.to(room.hostId).emit('cheat_alert', { username });
