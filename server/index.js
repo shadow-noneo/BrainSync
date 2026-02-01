@@ -14,25 +14,53 @@ const groq = new Groq({ apiKey: "gsk_tUTKGPGNqcdUDRkSeX9TWGdyb3FYoLsVpkXvxZ3fgPB
 
 const rooms = {}; 
 
-// 🧠 AI GENERATOR
-async function generateAIQuestion(subject, topic, marks) {
-  const prompt = `Act as an Engineering Math Professor. Generate 1 MCQ worth ${marks} marks.
+// 🧠 AI GENERATOR (FIXED RANDOM MARKS)
+async function generateAIQuestion(subject, topic) {
+  // 1. Force Random Marks Here
+  const possibleMarks = [5, 6, 7, 8, 10];
+  const marks = possibleMarks[Math.floor(Math.random() * possibleMarks.length)];
+
+  const prompt = `Act as an Engineering Math Professor.
+  Generate ONE multiple-choice question worth ${marks} Marks.
   Subject: ${subject}, Topic: ${topic}.
-  STRICT JSON FORMAT:
+  
+  Difficulty Level:
+  - ${marks} Marks Question (Make it ${marks >= 8 ? "Complex/Hard" : "Medium/Conceptual"}).
+
+  STRICT JSON FORMAT (Do not include markdown formatting like \`\`\`json):
   {
-    "question": "Question text using LaTeX",
+    "question": "Question text with LaTeX",
     "options": ["A", "B", "C", "D"],
-    "answer": "Exact text of correct option",
-    "explanation": "Short solution."
+    "answer": "Exact option text",
+    "explanation": "Solution."
   }`;
   
   try {
-    const res = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile", response_format: { type: "json_object" } });
-    return JSON.parse(res.choices[0].message.content);
-  } catch (e) { return { question: "Error", options: [], answer: "", explanation: "" }; }
+    const res = await groq.chat.completions.create({ 
+      messages: [{ role: "user", content: prompt }], 
+      model: "llama-3.3-70b-versatile", 
+      response_format: { type: "json_object" } 
+    });
+    
+    const parsedData = JSON.parse(res.choices[0].message.content);
+    
+    // 2. Overwrite marks with our random value to be safe
+    parsedData.marks = marks; 
+    return parsedData;
+
+  } catch (e) { 
+    console.error("AI Error:", e);
+    // 3. Fallback also uses the random marks!
+    return { 
+      question: "Could not generate question. Please try Next.", 
+      options: ["Error", "Try", "Next", "Button"], 
+      answer: "Next", 
+      explanation: "AI Service Error.", 
+      marks: marks 
+    }; 
+  }
 }
 
-// 🎙️ DOUBT SOLVER
 async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain simply.` }], model: "llama-3.3-70b-versatile" });
@@ -44,17 +72,8 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
     if (!rooms[roomCode]) {
-      // 👑 INIT ROOM
       rooms[roomCode] = { 
-        users: [], 
-        hostId: socket.id, 
-        currentQuestion: null, 
-        history: [], // Stores past questions
-        historyIndex: -1, // Where are we in history?
-        scores: {}, 
-        currentTopic: "General",
-        questionLimit: -1, // -1 = Unlimited
-        questionCount: 0
+        users: [], hostId: socket.id, currentQuestion: null, history: [], historyIndex: -1, scores: {}, currentTopic: "General", questionLimit: -1, questionCount: 0 
       };
     }
     const room = rooms[roomCode];
@@ -70,34 +89,29 @@ io.on('connection', (socket) => {
     if (rooms[roomCode]) rooms[roomCode].questionLimit = limit;
   });
 
-  socket.on('start_quiz', async ({ roomCode, subject, difficulty, marks }) => {
+  socket.on('start_quiz', async ({ roomCode, subject, difficulty }) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Sticky Topic Logic
     if (difficulty) room.currentTopic = difficulty;
 
-    // Check Limit
     if (room.questionLimit !== -1 && room.questionCount >= room.questionLimit) {
       io.to(roomCode).emit('game_over', { scores: room.scores });
       return;
     }
 
-    const qData = await generateAIQuestion(subject, room.currentTopic, marks);
-    qData.marks = marks; // Store marks value
+    // Generate with Dynamic Marks
+    const qData = await generateAIQuestion(subject, room.currentTopic);
     
-    // Add to History
     room.history.push(qData);
     room.historyIndex = room.history.length - 1;
     room.currentQuestion = qData;
     room.questionCount++;
-    
     room.timeLeft = 420; 
     room.timerRunning = true;
 
     io.to(roomCode).emit('new_question', qData);
     
-    // Timer Logic
     if (room.interval) clearInterval(room.interval);
     room.interval = setInterval(() => {
       if (room.timerRunning) {
@@ -108,34 +122,26 @@ io.on('connection', (socket) => {
     }, 1000);
   });
 
-  // ⏪ PREVIOUS QUESTION
+  // Navigation Logic
   socket.on('nav_prev', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room && room.historyIndex > 0) {
       room.historyIndex--;
       const prevQ = room.history[room.historyIndex];
       room.currentQuestion = prevQ;
-      // Show result state for review
-      io.to(roomCode).emit('round_result', { 
-        correctAnswer: prevQ.answer, 
-        explanation: prevQ.explanation, 
-        isReview: true 
-      });
+      io.to(roomCode).emit('new_question', prevQ); 
+      io.to(roomCode).emit('round_result', { correctAnswer: prevQ.answer, explanation: prevQ.explanation, isReview: true });
     }
   });
 
-  // ⏩ NEXT (If reviewing old question)
   socket.on('nav_next', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room && room.historyIndex < room.history.length - 1) {
       room.historyIndex++;
       const nextQ = room.history[room.historyIndex];
       room.currentQuestion = nextQ;
-      io.to(roomCode).emit('round_result', { 
-        correctAnswer: nextQ.answer, 
-        explanation: nextQ.explanation, 
-        isReview: true 
-      });
+      io.to(roomCode).emit('new_question', nextQ);
+      io.to(roomCode).emit('round_result', { correctAnswer: nextQ.answer, explanation: nextQ.explanation, isReview: true });
     }
   });
 
@@ -145,16 +151,11 @@ io.on('connection', (socket) => {
     
     const isCorrect = room.currentQuestion.answer === answer;
     if (isCorrect) {
-       room.scores[username] = (room.scores[username] || 0) + room.currentQuestion.marks;
+       // Use the dynamic marks for scoring!
+       room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5);
        io.to(roomCode).emit('update_scores', room.scores);
     }
-
-    // Send result ONLY to the user who answered (so others can still play)
-    socket.emit('round_result', { 
-      correctAnswer: room.currentQuestion.answer, 
-      explanation: room.currentQuestion.explanation,
-      isCorrect 
-    });
+    socket.emit('round_result', { correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect });
   });
 
   socket.on('host_action', ({ roomCode, action }) => {
@@ -165,7 +166,6 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('timer_update', room.timeLeft);
   });
 
-  // 🎓 MEMBER REQUESTS
   socket.on('student_signal', ({ roomCode, type, username }) => {
     const room = rooms[roomCode];
     if (room && room.hostId) io.to(room.hostId).emit('host_notification', { type, username });
