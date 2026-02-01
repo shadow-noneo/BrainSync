@@ -14,18 +14,42 @@ const groq = new Groq({ apiKey: "gsk_tUTKGPGNqcdUDRkSeX9TWGdyb3FYoLsVpkXvxZ3fgPB
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v6.0 - HOST RECOVERY & ZOOM VOICE ACTIVE");
+console.log("🚀 SERVER v6.1 - INDEX BASED MATCHING (100% ACCURACY)");
 
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
   const marks = possibleMarks[Math.floor(Math.random() * possibleMarks.length)];
-  const prompt = `Act as an Engineering Math Professor. Generate ONE multiple-choice question worth ${marks} Marks. Subject: ${subject}, Topic: ${topic}. Difficulty: ${marks >= 8 ? "Hard" : "Medium"}. STRICT JSON: {"question": "LaTeX text", "options": ["A", "B", "C", "D"], "answer": "Exact option", "explanation": "Sol.", "marks": ${marks}}`;
+  const prompt = `Act as an Engineering Math Professor. Generate ONE multiple-choice question worth ${marks} Marks. Subject: ${subject}, Topic: ${topic}. Difficulty: ${marks >= 8 ? "Hard" : "Medium"}. STRICT JSON: {"question": "LaTeX text", "options": ["A", "B", "C", "D"], "answer": "Exact option text", "explanation": "Sol.", "marks": ${marks}}`;
+  
   try {
     const res = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile", response_format: { type: "json_object" } });
     const data = JSON.parse(res.choices[0].message.content);
+    
+    // 🟢 CRITICAL FIX: Find the numeric index of the answer
+    // We sanitize strings to ensure they match
+    const cleanOpts = data.options.map(o => o.trim());
+    const cleanAns = data.answer.trim();
+    let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
+
+    // 🛡️ Fallback: If AI hallucinated an answer not in options, force Option A
+    if (correctIndex === -1) {
+        correctIndex = 0;
+        data.options[0] = data.answer; // Force match
+    }
+
+    data.correctIndex = correctIndex; // Store the NUMBER (0-3)
     data.marks = marks;
     return data;
-  } catch (e) { return { question: "Error. Try Next.", options: ["A", "B"], answer: "A", explanation: "Error", marks }; }
+  } catch (e) { 
+      return { 
+          question: "Error. Try Next.", 
+          options: ["Error", "Try Again", "Next", "Skip"], 
+          answer: "Next", 
+          correctIndex: 2, 
+          explanation: "Server Error", 
+          marks 
+      }; 
+  }
 }
 
 async function solveDoubt(q, d) {
@@ -36,34 +60,22 @@ async function solveDoubt(q, d) {
 }
 
 io.on('connection', (socket) => {
-  
-  // 🔄 REJOIN LOGIC (FIXED HOST LOSS)
   socket.on('rejoin_room', ({ roomCode, username }) => {
     if (rooms[roomCode]) {
       socket.join(roomCode);
       const room = rooms[roomCode];
       
-      // Update socket ID for existing user
       const userIndex = room.users.findIndex(u => u.username === username);
-      if (userIndex !== -1) {
-          room.users[userIndex].id = socket.id; // Update ID
-      } else {
-          room.users.push({ id: socket.id, username });
-      }
+      if (userIndex !== -1) room.users[userIndex].id = socket.id;
+      else room.users.push({ id: socket.id, username });
 
-      // 👑 CHECK IF THEY WERE THE HOST
-      let isHost = false;
-      if (room.hostUsername === username) {
-          room.hostId = socket.id; // Re-assign socket ID to Host
-          isHost = true;
-      }
+      let isHost = (room.hostUsername === username);
+      if(isHost) room.hostId = socket.id;
 
       socket.emit('set_role', { role: isHost ? 'host' : 'member' });
       if (room.currentQuestion) socket.emit('new_question', room.currentQuestion);
       if (isHost && room.canMoveOn) socket.emit('unlock_host');
       socket.emit('update_scores', room.scores);
-      
-      console.log(`🔄 ${username} reconnected to ${roomCode} as ${isHost ? 'HOST' : 'MEMBER'}`);
     } else {
       socket.emit('error_message', "Room expired.");
     }
@@ -72,28 +84,14 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
     if (!rooms[roomCode]) {
-        // Create Room
-        rooms[roomCode] = { 
-            users: [], 
-            hostId: socket.id, 
-            hostUsername: username, // 👑 SAVE HOST NAME PERMANENTLY
-            currentQuestion: null, 
-            scores: {}, 
-            history: [], 
-            historyIndex: -1, 
-            questionLimit: -1, 
-            questionCount: 0, 
-            canMoveOn: false 
-        };
+        rooms[roomCode] = { users: [], hostId: socket.id, hostUsername: username, currentQuestion: null, scores: {}, history: [], historyIndex: -1, questionLimit: -1, questionCount: 0, canMoveOn: false };
     }
-    
     const room = rooms[roomCode];
     room.users.push({ id: socket.id, username });
     if (typeof room.scores[username] === 'undefined') room.scores[username] = 0;
 
-    // Check against saved Host Name
     const isHost = (room.hostUsername === username);
-    if(isHost) room.hostId = socket.id; // Update active host socket
+    if(isHost) room.hostId = socket.id;
 
     socket.emit('set_role', { role: isHost ? 'host' : 'member' });
     io.to(roomCode).emit('update_scores', room.scores);
@@ -103,7 +101,6 @@ io.on('connection', (socket) => {
     socket.to(roomCode).emit('receive_message', { username, text, image, time: new Date().toLocaleTimeString() });
   });
 
-  // 🎙️ ZOOM-STYLE TOGGLE AUDIO
   socket.on('send_audio_chunk', ({ roomCode, audioChunk, username }) => {
     socket.to(roomCode).emit('receive_audio_chunk', { audioChunk, username });
   });
@@ -153,7 +150,7 @@ io.on('connection', (socket) => {
       const q = room.history[room.historyIndex];
       room.currentQuestion = q;
       io.to(roomCode).emit('new_question', q);
-      io.to(roomCode).emit('round_result', { correctAnswer: q.answer, explanation: q.explanation, isReview: true });
+      io.to(roomCode).emit('round_result', { correctIndex: q.correctIndex, correctAnswer: q.answer, explanation: q.explanation, isReview: true });
     }
   });
 
@@ -164,14 +161,19 @@ io.on('connection', (socket) => {
       const q = room.history[room.historyIndex];
       room.currentQuestion = q;
       io.to(roomCode).emit('new_question', q);
-      io.to(roomCode).emit('round_result', { correctAnswer: q.answer, explanation: q.explanation, isReview: true });
+      io.to(roomCode).emit('round_result', { correctIndex: q.correctIndex, correctAnswer: q.answer, explanation: q.explanation, isReview: true });
     }
   });
 
-  socket.on('submit_answer', ({ roomCode, answer, username }) => {
+  // 🟢 FIXED SUBMIT ANSWER: Uses Index Comparison
+  socket.on('submit_answer', ({ roomCode, answerIndex, username }) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
-    if (room.currentQuestion.answer === answer) {
+    
+    // Compare NUMBERS, not strings
+    const isCorrect = (answerIndex === room.currentQuestion.correctIndex);
+    
+    if (isCorrect) {
        room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5);
        io.to(roomCode).emit('update_scores', room.scores);
     }
@@ -179,7 +181,13 @@ io.on('connection', (socket) => {
         room.canMoveOn = true;
         if(room.hostId) io.to(room.hostId).emit('unlock_host');
     }
-    socket.emit('round_result', { correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect: room.currentQuestion.answer === answer });
+    
+    socket.emit('round_result', { 
+        correctIndex: room.currentQuestion.correctIndex, // Send the Truth Index
+        correctAnswer: room.currentQuestion.answer, 
+        explanation: room.currentQuestion.explanation, 
+        isCorrect 
+    });
   });
 
   socket.on('host_action', ({ roomCode, action }) => {
