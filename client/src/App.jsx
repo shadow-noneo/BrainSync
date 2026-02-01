@@ -50,21 +50,17 @@ function App() {
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
-    
     socket.on('new_question', (data) => {
       setQuestion(data);
       setRoundResult(null); 
       setSelectedOption(null);
       setGameState('playing');
     });
-
     socket.on('timer_update', (time) => setTimer(time));
-    
     socket.on('round_result', (data) => {
       setRoundResult(data);
       setGameState('result');
     });
-
     return () => socket.off();
   }, []);
 
@@ -103,6 +99,15 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* 🟢 INJECT ANIMATION DIRECTLY INTO PAGE */}
+      <style>
+        {`
+          @keyframes nuclearSpin {
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+
       {gameState !== 'menu' && (
         <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
       )}
@@ -137,16 +142,30 @@ function App() {
       <div className="game-area">
         <h1 className="logo">🧠 BrainSync</h1>
         
-        {/* 🟢 NUCLEAR LOADING SCREEN FIX */}
+        {/* 🟢 LOADING SCREEN WITH INLINE STYLES (CANNOT BE CACHED) */}
         {gameState === 'loading' && (
-           <div className="card" style={{textAlign: 'center', minHeight: '200px', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center'}}>
+           <div className="card" style={{
+             textAlign: 'center', 
+             minHeight: '200px', 
+             display:'flex', 
+             flexDirection:'column', 
+             justifyContent:'center', 
+             alignItems:'center'
+           }}>
              
-             {/* The New Galaxy Spinner */}
-             <div className="galaxy-loader"></div>
+             {/* THE SPINNER */}
+             <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: 'conic-gradient(#4285F4, #EA4335, #FBBC05, #34A853, #4285F4)',
+                mask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0)',
+                WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0)',
+                animation: 'nuclearSpin 1s linear infinite',
+                margin: '20px auto'
+             }}></div>
              
-             {/* Text with Sparkle */}
-             <h2 className="sparkle-text">BrainSync is thinking... ✨</h2>
-           
+             <h2 className="sparkle-text">Thinking... ✨</h2>
            </div>
         )}
 
