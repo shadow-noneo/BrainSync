@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import 'katex/dist/katex.min.css'; 
 import { InlineMath } from 'react-katex';
-import './App.css';
 
 // 🔗 CONNECT
 const socket = io.connect("https://brainsync-server.onrender.com"); 
@@ -10,15 +9,21 @@ const socket = io.connect("https://brainsync-server.onrender.com");
 // 🧠 MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
-  let cleanText = text.replace(/\\/g, '\\').replace(/\$/g, ''); // Simple cleanup
-  // Re-add dollars for KaTeX
-  if (text.includes('\\') || text.includes('^') || text.includes('_')) {
-     return <InlineMath math={text} />;
-  }
-  return <span>{text}</span>;
+  let cleanText = text.replace(/\\/g, '\\'); 
+  // Force basic cleanup for common LaTeX issues
+  cleanText = cleanText.replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$');
+  
+  // Split by $ for inline math
+  const parts = cleanText.split('$');
+  return (
+    <span>
+      {parts.map((part, index) => {
+        return index % 2 === 0 ? <span key={index}>{part}</span> : <InlineMath key={index} math={part} />;
+      })}
+    </span>
+  );
 };
 
-// SYLLABUS (Kept same as before)
 const SYLLABUS = {
   "Applied Mathematics-II": [
     { id: "m1", name: "Module 1: Diff Eq (1st Order)", prompt: "Exact differential Equations, Equations reducible to exact form" },
@@ -56,7 +61,6 @@ function App() {
       setGameState('result');
     });
 
-    // 🟢 HANDLE AI VOICE REPLY
     socket.on('ai_voice_reply', ({ text }) => {
       speakText(text);
     });
@@ -64,36 +68,30 @@ function App() {
     return () => socket.off();
   }, []);
 
-  // 🗣️ TEXT TO SPEECH
   const speakText = (text) => {
+    // Stop any current speech
+    window.speechSynthesis.cancel();
     setAiSpeaking(true);
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.onend = () => setAiSpeaking(false);
     window.speechSynthesis.speak(utterance);
   };
 
-  // 🎙️ SPEECH TO TEXT
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Browser does not support Voice. Use Chrome/Edge.");
       return;
     }
-
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
     setIsListening(true);
-
     recognition.onstart = () => console.log("Mic On...");
-    
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      console.log("You said:", transcript);
       setIsListening(false);
-      // Send to AI
       socket.emit('ask_ai', { roomCode, userQuery: transcript });
     };
-
     recognition.onerror = () => setIsListening(false);
     recognition.start();
   };
@@ -119,66 +117,85 @@ function App() {
   const isCorrect = roundResult && selectedOption === roundResult.correctAnswer;
 
   return (
-    <div className="app-container">
-      {/* INJECT SPINNER STYLE */}
-      <style>{`@keyframes nuclearSpin { 100% { transform: rotate(360deg); } }`}</style>
+    <div style={styles.appContainer}>
+      {/* 🟢 INLINE STYLES FOR SPINNER (Cannot be cached!) */}
+      <style>{`
+        @keyframes galaxySpin { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        .galaxy-ring {
+           width: 70px; height: 70px; border-radius: 50%;
+           background: conic-gradient(#4285F4, #EA4335, #FBBC05, #34A853, #4285F4);
+           mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0);
+           -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #fff 0);
+           animation: galaxySpin 1s linear infinite;
+           margin: 0 auto 20px auto;
+        }
+      `}</style>
+
+      {/* VERSION CHECKER */}
+      <div style={{position:'absolute', top:5, right:5, fontSize:10, color:'#555'}}>v3.0 (Voice+Galaxy)</div>
 
       {gameState !== 'menu' && (
-        <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
+        <button style={styles.menuBtn} onClick={() => setMenuOpen(!menuOpen)}>☰</button>
       )}
 
       {menuOpen && (
-        <div className="sidebar">
-          <h3>Syllabus</h3>
-          <button onClick={() => setMenuOpen(false)}>Close</button>
+        <div style={styles.sidebar}>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:20}}>
+            <h3>Syllabus</h3>
+            <button onClick={() => setMenuOpen(false)} style={{background:'none', border:'none', color:'white', fontSize:20}}>×</button>
+          </div>
           {SYLLABUS["Applied Mathematics-II"].map(m => (
-             <button key={m.id} className="subtopic-btn" onClick={() => startTopicQuiz(m.prompt)}>{m.name}</button>
+             <button key={m.id} style={styles.subtopicBtn} onClick={() => startTopicQuiz(m.prompt)}>{m.name}</button>
           ))}
         </div>
       )}
 
-      <div className="game-area">
-        <h1 className="logo">🧠 BrainSync</h1>
+      <div style={styles.gameArea}>
+        <h1 style={styles.logo}>🧠 BrainSync</h1>
         
+        {/* 🟢 LOADING SCREEN */}
         {gameState === 'loading' && (
-           <div className="card" style={{textAlign:'center'}}>
-             <div style={{width:'50px', height:'50px', borderRadius:'50%', border:'5px solid #4285F4', borderTopColor:'transparent', animation:'nuclearSpin 1s linear infinite', margin:'20px auto'}}></div>
-             <h2>Thinking...</h2>
+           <div style={styles.cardCenter}>
+             <div className="galaxy-ring"></div>
+             <h2 style={{animation: 'pulse 1.5s infinite'}}>BrainSync is Thinking... ✨</h2>
            </div>
         )}
 
+        {/* MENU */}
         {gameState === 'menu' && (
-          <div className="card login-box">
+          <div style={styles.card}>
             <h2>Student Login</h2>
-            <input placeholder="Name" onChange={(e) => setUsername(e.target.value)} />
-            <input placeholder="Room Code" onChange={(e) => setRoomCode(e.target.value)} />
-            <button onClick={joinRoom} className="primary-btn">Start Quiz</button>
+            <input placeholder="Name" style={styles.input} onChange={(e) => setUsername(e.target.value)} />
+            <input placeholder="Room Code" style={styles.input} onChange={(e) => setRoomCode(e.target.value)} />
+            <button onClick={joinRoom} style={styles.primaryBtn}>Start Quiz</button>
           </div>
         )}
 
+        {/* GAME & RESULT */}
         {(gameState === 'playing' || gameState === 'result') && question && (
-          <div className="card quiz-box">
-            <h3 className="question-text"><MathText text={question.question} /></h3>
+          <div style={styles.card}>
+            <h3 style={{lineHeight:1.6}}><MathText text={question.question} /></h3>
             
             {/* 🟢 MIC BUTTON */}
-            <div style={{textAlign: 'right', marginBottom: '10px'}}>
-               <button 
-                 onClick={startListening} 
-                 style={{
-                   background: isListening ? '#ff4757' : '#2ecc71',
-                   color: 'white', border: 'none', padding: '10px 15px', borderRadius: '50px', cursor: 'pointer', fontSize:'14px', fontWeight:'bold'
-                 }}
-               >
-                 {isListening ? "Listening... 🛑" : (aiSpeaking ? "AI Speaking... 🔊" : "🎤 Discuss")}
+            <div style={{textAlign: 'right', marginBottom: 15}}>
+               <button onClick={startListening} style={{
+                   background: isListening ? '#ff4757' : (aiSpeaking ? '#f1c40f' : '#2ecc71'),
+                   color: 'white', border: 'none', padding: '8px 15px', borderRadius: '50px', cursor: 'pointer', fontWeight:'bold'
+               }}>
+                 {isListening ? "Listening... 🛑" : (aiSpeaking ? "Speaking... 🔊" : "🎤 Ask Doubt")}
                </button>
             </div>
 
             {gameState === 'playing' && (
-              <div className="options-grid">
+              <div style={styles.grid}>
                 {question.options.map((opt, i) => (
                   <button 
                     key={i} 
-                    className={`option-btn ${selectedOption === opt ? 'selected' : ''}`} 
+                    style={{
+                      ...styles.optionBtn, 
+                      ...(selectedOption === opt ? styles.selected : {})
+                    }}
                     onClick={() => handleAnswer(opt)}
                     disabled={selectedOption !== null}
                   >
@@ -189,17 +206,22 @@ function App() {
             )}
 
             {gameState === 'result' && roundResult && (
-              <div className="result-box">
-                <h2 style={{color: isCorrect ? '#4caf50' : '#ff4757'}}>
-                  {isCorrect ? "Correct!" : "Wrong!"}
+              <div style={{marginTop:20, borderTop:'1px solid #444', paddingTop:20}}>
+                <h2 style={{color: isCorrect ? '#4caf50' : '#ff4757', textAlign:'center'}}>
+                  {isCorrect ? "✅ Correct!" : "❌ Wrong!"}
                 </h2>
-                <div className="result-answer">
-                  <strong>Answer:</strong> <MathText text={roundResult.correctAnswer} />
+                
+                <div style={styles.resultBlock}>
+                  <strong style={{color:'#aaa'}}>Correct Answer:</strong>
+                  <div style={{color:'#4caf50', fontSize:18, marginTop:5}}><MathText text={roundResult.correctAnswer} /></div>
                 </div>
-                <div className="result-explanation">
-                  <strong>Explanation:</strong> {roundResult.explanation}
+
+                <div style={styles.resultBlock}>
+                  <strong style={{color:'#aaa'}}>Explanation:</strong>
+                  <div style={{marginTop:5, lineHeight:1.5}}><MathText text={roundResult.explanation} /></div>
                 </div>
-                <button onClick={() => startTopicQuiz("General")} className="primary-btn">Next</button>
+
+                <button onClick={() => startTopicQuiz("General")} style={styles.primaryBtn}>Next Question ➡️</button>
               </div>
             )}
           </div>
@@ -208,5 +230,22 @@ function App() {
     </div>
   );
 }
+
+// 🟢 INTERNAL STYLES (NO CACHE ISSUES)
+const styles = {
+  appContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', color: 'white', minHeight:'100vh', padding: 20 },
+  card: { background: '#2a2a2a', padding: '2rem', borderRadius: 15, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', width: '100%', maxWidth: 600 },
+  cardCenter: { background: '#2a2a2a', padding: '3rem', borderRadius: 15, width: '100%', maxWidth: 600, textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center' },
+  logo: { marginBottom: '2rem', fontSize: '2.5em', textShadow: '0 0 10px rgba(100, 108, 255, 0.5)' },
+  input: { padding: 12, margin: '10px 0', width: '100%', borderRadius: 5, border: '1px solid #444', background: '#333', color: 'white', fontSize: 16 },
+  primaryBtn: { background: '#646cff', color: 'white', padding: '12px 20px', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 16, width: '100%', marginTop: 15, fontWeight: 'bold' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 },
+  optionBtn: { background: '#333', color: 'white', padding: 15, border: '1px solid #444', borderRadius: 8, cursor: 'pointer', textAlign: 'left', transition: '0.2s' },
+  selected: { background: '#4285F4', borderColor: 'white' },
+  menuBtn: { position: 'fixed', top: 20, left: 20, fontSize: 18, background: '#222', border: '1px solid #444', color: 'white', padding: '8px 12px', borderRadius: 5, cursor: 'pointer', zIndex: 1000 },
+  sidebar: { position: 'fixed', top: 0, left: 0, width: 320, height: '100%', background: '#1a1a1a', padding: 20, zIndex: 999, overflowY: 'auto' },
+  subtopicBtn: { display:'block', width:'100%', textAlign:'left', padding:10, background:'transparent', color:'#ccc', border:'none', marginBottom:5, cursor:'pointer', borderBottom:'1px solid #333' },
+  resultBlock: { background:'#1e1e1e', padding:15, borderRadius:8, marginTop:15 }
+};
 
 export default App;
