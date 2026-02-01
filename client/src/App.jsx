@@ -46,8 +46,6 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentTopic, setCurrentTopic] = useState(null); 
   const [selectedSubject, setSelectedSubject] = useState(null);
-  
-  // Track User Selection
   const [selectedOption, setSelectedOption] = useState(null);
 
   useEffect(() => {
@@ -56,7 +54,7 @@ function App() {
     socket.on('new_question', (data) => {
       setQuestion(data);
       setRoundResult(null); 
-      setSelectedOption(null); // Reset for new question
+      setSelectedOption(null);
       setGameState('playing');
     });
 
@@ -101,7 +99,6 @@ function App() {
     setSelectedSubject(selectedSubject === subject ? null : subject);
   };
 
-  // Helper to check if user was right
   const isCorrect = roundResult && selectedOption === roundResult.correctAnswer;
 
   return (
@@ -140,10 +137,13 @@ function App() {
       <div className="game-area">
         <h1 className="logo">🧠 BrainSync</h1>
         
+        {/* 🟢 NEW LOADING SCREEN (Gemini Style) */}
         {gameState === 'loading' && (
-           <div className="card" style={{textAlign: 'center'}}>
-             <h2>🔄 Generating Math...</h2>
-             <div className="super-spinner"></div>
+           <div className="card" style={{textAlign: 'center', minHeight: '200px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
+             <h2>BrainSync is thinking...</h2>
+             <div className="gemini-spinner">
+                <div className="sparkle-icon">✨</div>
+             </div>
            </div>
         )}
 
@@ -175,16 +175,12 @@ function App() {
           </div>
         )}
 
-        {/* 🟢 NEW RESULT SCREEN WITH FEEDBACK */}
         {gameState === 'result' && roundResult && (
           <div className="card result-box">
-            
-            {/* 1. BIG STATUS BADGE */}
             <h2 className={isCorrect ? "status-correct" : "status-wrong"}>
               {isCorrect ? "✅ Correct!" : "❌ Wrong!"}
             </h2>
 
-            {/* 2. SHOW WHAT YOU PICKED (If Wrong) */}
             {!isCorrect && selectedOption && (
                <div className="result-answer wrong-selection">
                  <strong>You Selected:</strong>
@@ -192,7 +188,6 @@ function App() {
                </div>
             )}
 
-            {/* 3. SHOW CORRECT ANSWER */}
             <div className="result-answer">
               <strong>Correct Answer:</strong>
               <div className="math-block correct-block"><MathText text={roundResult.correctAnswer} /></div>

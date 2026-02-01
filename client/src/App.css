@@ -1,6 +1,6 @@
 #root { width: 100%; max-width: 1280px; margin: 0 auto; padding: 2rem; text-align: center; }
 .app-container { display: flex; flex-direction: column; align-items: center; width: 100%; color: white; }
-.card { background: #2a2a2a; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 600px; text-align: left; }
+.card { background: #2a2a2a; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 600px; text-align: left; position: relative; }
 
 .logo { margin-bottom: 2rem; font-size: 2.5em; text-shadow: 0 0 10px rgba(100, 108, 255, 0.5); }
 .katex { font-size: 1.1em; color: #a6e3a1; } 
@@ -15,27 +15,14 @@ input { padding: 12px; margin: 10px 0; width: 100%; border-radius: 5px; border: 
 .option-btn { background: #333; color: white; padding: 15px; border: 1px solid #444; border-radius: 8px; cursor: pointer; transition: 0.2s; text-align: left; }
 .option-btn:hover { background: #444; border-color: #646cff; transform: translateY(-2px); }
 
-/* Selected Option Style */
-.option-btn.selected {
-  background-color: #4285F4 !important;
-  border-color: #fff !important;
-  color: white !important;
-}
-
-/* 🟢 RESULT STYLES (New) */
+/* Selected/Correct/Wrong Styles */
+.option-btn.selected { background-color: #4285F4 !important; border-color: #fff !important; color: white !important; }
 .status-correct { color: #4caf50; font-size: 2em; text-align: center; margin-bottom: 20px; }
 .status-wrong { color: #ff4757; font-size: 2em; text-align: center; margin-bottom: 20px; }
+.wrong-selection .math-block { border-left: 4px solid #ff4757; background: #2d1b1b; }
+.correct-block { border-left: 4px solid #4caf50; }
 
-.wrong-selection .math-block {
-  border-left: 4px solid #ff4757; /* Red Border for Wrong Choice */
-  background: #2d1b1b;
-}
-
-.correct-block {
-  border-left: 4px solid #4caf50; /* Green Border for Correct Answer */
-}
-
-/* Menu & Spinner */
+/* Menu */
 .menu-btn { position: fixed; top: 20px; left: 20px; font-size: 18px; background: #222; border: 1px solid #444; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 1000; }
 .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1a1a1a; padding: 20px; box-shadow: 4px 0 15px rgba(0,0,0,0.8); z-index: 999; overflow-y: auto; display: flex; flex-direction: column; }
 .sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
@@ -46,10 +33,48 @@ input { padding: 12px; margin: 10px 0; width: 100%; border-radius: 5px; border: 
 .subtopic-btn { text-align: left; padding: 10px; background: transparent; color: #ccc; border: none; margin-bottom: 2px; font-size: 14px; cursor: pointer; border-radius: 4px; }
 .timer-badge { background: #ff4757; color: white; display: inline-block; padding: 5px 10px; border-radius: 20px; font-weight: bold; margin-bottom: 15px; }
 
-/* Super Spinner */
-.super-spinner {
-  width: 60px; height: 60px; border-radius: 50%; border: 8px solid transparent; 
-  border-top-color: #4285F4; border-right-color: #34A853; border-bottom-color: #FBBC05; border-left-color: #EA4335;
-  animation: spin 1s linear infinite; margin: 30px auto; display: block;
+/* ✨ GEMINI STYLE SPINNER (The Real Deal) */
+.gemini-spinner {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  position: relative;
+  margin: 30px auto;
+  
+  /* This creates the smooth 4-color gradient blend */
+  background: conic-gradient(#4285F4, #EA4335, #FBBC05, #34A853, #4285F4);
+  
+  animation: spin 1.5s linear infinite;
+  
+  /* This creates the "hole" in the middle to make it a ring */
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* This is the black circle inside that hides the center */
+.gemini-spinner::after {
+  content: '';
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #2a2a2a; /* Matches the card color */
+}
+
+/* Sparkle in the middle (Optional) */
+.sparkle-icon {
+  position: absolute;
+  z-index: 10;
+  font-size: 24px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
