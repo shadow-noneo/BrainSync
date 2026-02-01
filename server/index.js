@@ -16,7 +16,6 @@ const rooms = {};
 
 async function generateAIQuestion(subject, topic, marks, excludeList = []) {
   const actualTopic = topic || "General Concepts";
-  console.log(`⚡ Generating Question: ${actualTopic}`);
   
   const prompt = `Act as an Engineering Math Professor.
   Generate 1 MCQ worth ${marks} marks.
@@ -39,11 +38,10 @@ async function generateAIQuestion(subject, topic, marks, excludeList = []) {
     });
     return JSON.parse(completion.choices[0].message.content);
   } catch (error) {
-    return { question: "Error", options: [], answer: "", explanation: "" };
+    return { question: "Error generating question.", options: [], answer: "", explanation: "" };
   }
 }
 
-// 🟢 NEW: AI DOUBT SOLVER
 async function solveDoubt(question, doubt) {
   const prompt = `
   Context Question: ${question}
@@ -64,6 +62,19 @@ async function solveDoubt(question, doubt) {
   }
 }
 
+function endRound(roomCode) {
+  const room = rooms[roomCode];
+  if (!room || room.timerEnded) return;
+  room.timerEnded = true;
+  clearInterval(room.interval);
+  
+  io.to(roomCode).emit('round_result', { 
+    correctAnswer: room.currentQuestion.answer, 
+    explanation: room.currentQuestion.explanation,
+    isCorrect: false // Timeout counts as wrong/skipped
+  });
+}
+
 io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
@@ -78,11 +89,25 @@ io.on('connection', (socket) => {
     const qData = await generateAIQuestion(subject, difficulty, marks, room.usedQuestions);
     room.currentQuestion = qData;
     room.usedQuestions.push(qData.question);
+    
+    // 🟢 TIMER SET TO 7 MINUTES (420 SECONDS)
+    room.timeLeft = 420; 
+    room.timerEnded = false;
+
     io.to(roomCode).emit('new_question', { question: qData.question, options: qData.options });
+
+    if (room.interval) clearInterval(room.interval);
+    room.interval = setInterval(() => {
+      room.timeLeft--;
+      io.to(roomCode).emit('timer_update', room.timeLeft);
+      if (room.timeLeft <= 0) endRound(roomCode);
+    }, 1000);
   });
 
   socket.on('submit_answer', ({ roomCode, answer }) => {
     const room = rooms[roomCode];
+    if(room.timerEnded) return;
+    clearInterval(room.interval); // Stop timer on answer
     const isCorrect = room.currentQuestion.answer === answer;
     io.to(roomCode).emit('round_result', { 
       correctAnswer: room.currentQuestion.answer, 
@@ -91,15 +116,10 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 🟢 NEW: LISTEN FOR VOICE DOUBTS
   socket.on('ask_ai', async ({ roomCode, userQuery }) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
-    
-    // Ask AI to explain
     const answer = await solveDoubt(room.currentQuestion.question, userQuery);
-    
-    // Send audio text back to user
     socket.emit('ai_voice_reply', { text: answer });
   });
 });
