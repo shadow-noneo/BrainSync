@@ -8,13 +8,13 @@ const Groq = require("groq-sdk");
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 }); // Handles images
+const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v7.1 - PRIVATE AI & OPTIMIZED");
+console.log("🚀 SERVER v7.2 - HUMAN-LIKE VOICE AI ACTIVE");
 
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
@@ -36,11 +36,28 @@ async function generateAIQuestion(subject, topic) {
   } catch (e) { return { question: "Error. Try Next.", options: ["Error", "Try Again", "Next", "Skip"], answer: "Next", correctIndex: 2, explanation: "Server Error", marks }; }
 }
 
+// 🟢 NEW AI LOGIC: METHOD ONLY, NO MATH SYMBOLS
 async function solveDoubt(q, d) {
   try {
-    const res = await groq.chat.completions.create({ messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain simply.` }], model: "llama-3.3-70b-versatile" });
+    const res = await groq.chat.completions.create({ 
+      messages: [{ 
+        role: "user", 
+        content: `
+        Context Question: ${q}
+        Student Doubt: ${d}
+        
+        INSTRUCTIONS:
+        1. Explain the METHOD or CONCEPT to solve this.
+        2. Do NOT read the formulas or equations.
+        3. Do NOT use LaTeX, brackets, or math symbols like x^2.
+        4. Speak in plain English (e.g., say "Use the chain rule" instead of reading the formula).
+        5. Keep it short (2 sentences max).
+        ` 
+      }], 
+      model: "llama-3.3-70b-versatile" 
+    });
     return res.choices[0].message.content;
-  } catch (e) { return "I couldn't hear that."; }
+  } catch (e) { return "I can't explain that right now."; }
 }
 
 io.on('connection', (socket) => {
@@ -183,16 +200,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 🟢 PRIVATE AI: Uses 'socket.emit' instead of 'io.to'
+  // 🟢 PRIVATE AI (Corrected Logic)
   socket.on('ask_ai', async ({ roomCode, userQuery }) => {
     const room = rooms[roomCode];
     if (!room) return;
     
-    // Tell ONLY the user "Thinking..." (Client handles this visual now)
-    
+    // AI processes the logic
     const ans = await solveDoubt(room.currentQuestion.question, userQuery);
     
-    // Reply ONLY to the asker
+    // 🔒 PRIVATE REPLY (Only to the person who asked)
     socket.emit('ai_voice_reply', { text: ans });
   });
 });
