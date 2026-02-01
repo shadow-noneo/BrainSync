@@ -10,39 +10,21 @@ const socket = io.connect("https://brainsync-server.onrender.com");
 // 🧠 INTELLIGENT MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
-
   let cleanText = text;
-
-  // ⚡ THE FIX: If text has a backslash (\) but NO dollars ($), wrap it in dollars automatically!
-  // This forces options like "\frac{pi}{2}" to render as Math.
   if (cleanText.includes('\\') && !cleanText.includes('$')) {
     cleanText = `$${cleanText}$`;
   }
-
-  // Standard cleanup for other AI brackets
-  cleanText = cleanText
-    .replace(/\\\(/g, '$')  
-    .replace(/\\\)/g, '$')  
-    .replace(/\\\[/g, '$')  
-    .replace(/\\\]/g, '$'); 
-
+  cleanText = cleanText.replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$'); 
   const parts = cleanText.split('$');
-
   return (
     <span>
       {parts.map((part, index) => {
-        // Even = Text, Odd = Math
-        return index % 2 === 0 ? (
-          <span key={index}>{part}</span>
-        ) : (
-          <InlineMath key={index} math={part} />
-        );
+        return index % 2 === 0 ? <span key={index}>{part}</span> : <InlineMath key={index} math={part} />;
       })}
     </span>
   );
 };
 
-// 📚 SYLLABUS
 const SYLLABUS = {
   "Applied Mathematics-II": [
     { id: "m1", name: "Module 1: Diff Eq (1st Order)", prompt: "Exact differential Equations, Equations reducible to exact form, Linear differential equations, Bernoulli's equation" },
@@ -67,20 +49,16 @@ function App() {
 
   useEffect(() => {
     socket.on('update_room', (data) => console.log("Room Updated", data));
-    
     socket.on('new_question', (data) => {
       setQuestion(data);
       setRoundResult(null); 
       setGameState('playing');
     });
-
     socket.on('timer_update', (time) => setTimer(time));
-    
     socket.on('round_result', (data) => {
       setRoundResult(data);
       setGameState('result');
     });
-
     return () => socket.off();
   }, []);
 
@@ -95,15 +73,7 @@ function App() {
     setCurrentTopic(topicPrompt); 
     setGameState('loading'); 
     setMenuOpen(false); 
-    
-    const marks = Math.floor(Math.random() * 4) + 5; 
-    
-    socket.emit('start_quiz', { 
-      roomCode, 
-      subject: "Applied Mathematics-II", 
-      difficulty: topicPrompt, 
-      marks 
-    });
+    socket.emit('start_quiz', { roomCode, subject: "Applied Mathematics-II", difficulty: topicPrompt, marks: 6 });
   };
 
   const nextQuestion = () => {
@@ -115,16 +85,11 @@ function App() {
   };
 
   const toggleSubject = (subject) => {
-    if (selectedSubject === subject) {
-      setSelectedSubject(null);
-    } else {
-      setSelectedSubject(subject);
-    }
+    setSelectedSubject(selectedSubject === subject ? null : subject);
   };
 
   return (
     <div className="app-container">
-      
       {gameState !== 'menu' && (
         <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
       )}
@@ -135,25 +100,16 @@ function App() {
             <h3>Syllabus</h3>
             <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
           </div>
-          
           <div className="subject-list">
             {Object.keys(SYLLABUS).map((subject) => (
               <div key={subject} className="subject-group">
-                <button 
-                  className="subject-btn" 
-                  onClick={() => toggleSubject(subject)}
-                >
+                <button className="subject-btn" onClick={() => toggleSubject(subject)}>
                   {subject} {selectedSubject === subject ? '▼' : '▶'}
                 </button>
-
                 {selectedSubject === subject && (
                   <div className="subtopic-list">
                       {SYLLABUS[subject].map((module) => (
-                        <button 
-                          key={module.id} 
-                          className="subtopic-btn"
-                          onClick={() => startTopicQuiz(module.prompt)}
-                        >
+                        <button key={module.id} className="subtopic-btn" onClick={() => startTopicQuiz(module.prompt)}>
                           {module.name}
                         </button>
                       ))}
@@ -169,9 +125,10 @@ function App() {
         <h1 className="logo">🧠 BrainSync</h1>
         
         {gameState === 'loading' && (
-           <div className="card">
+           <div className="card" style={{textAlign: 'center'}}>
              <h2>🔄 Generating Math...</h2>
-             <div className="loader"></div>
+             {/* 🛑 RENAMED CLASS HERE TO FORCE UPDATE */}
+             <div className="ai-spinner"></div>
            </div>
         )}
 
@@ -187,9 +144,7 @@ function App() {
         {gameState === 'playing' && question && (
           <div className="card quiz-box">
             <div className="timer-badge">⏳ {timer}s</div>
-            <h3 className="question-text">
-              <MathText text={question.question} />
-            </h3>
+            <h3 className="question-text"><MathText text={question.question} /></h3>
             <div className="options-grid">
               {question.options.map((opt, i) => (
                 <button key={i} className="option-btn" onClick={() => socket.emit('submit_answer', { roomCode, answer: opt })}>
@@ -205,19 +160,13 @@ function App() {
             <h2>📝 Solution</h2>
             <div className="result-answer">
               <strong>Correct Answer:</strong>
-              <div className="math-block">
-                 <MathText text={roundResult.correctAnswer} />
-              </div>
+              <div className="math-block"><MathText text={roundResult.correctAnswer} /></div>
             </div>
             <div className="result-explanation">
               <strong>Explanation:</strong>
-              <div className="math-explanation">
-                <MathText text={roundResult.explanation} />
-              </div>
+              <div className="math-explanation"><MathText text={roundResult.explanation} /></div>
             </div>
-            <button onClick={nextQuestion} className="primary-btn next-btn">
-              Next Question ➡️
-            </button>
+            <button onClick={nextQuestion} className="primary-btn next-btn">Next Question ➡️</button>
           </div>
         )}
       </div>
