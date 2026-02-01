@@ -8,13 +8,13 @@ const Groq = require("groq-sdk");
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
+const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 }); // Handles images
 
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v7.0 - GROUP AI & STABLE AUDIO");
+console.log("🚀 SERVER v7.1 - PRIVATE AI & OPTIMIZED");
 
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
@@ -24,11 +24,13 @@ async function generateAIQuestion(subject, topic) {
   try {
     const res = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile", response_format: { type: "json_object" } });
     const data = JSON.parse(res.choices[0].message.content);
+    
     const cleanOpts = data.options.map(o => o.trim());
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
     if (correctIndex === -1) { correctIndex = 0; data.options[0] = data.answer; }
-    data.correctIndex = correctIndex;
+
+    data.correctIndex = correctIndex; 
     data.marks = marks;
     return data;
   } catch (e) { return { question: "Error. Try Next.", options: ["Error", "Try Again", "Next", "Skip"], answer: "Next", correctIndex: 2, explanation: "Server Error", marks }; }
@@ -46,6 +48,7 @@ io.on('connection', (socket) => {
     if (rooms[roomCode]) {
       socket.join(roomCode);
       const room = rooms[roomCode];
+      
       const userIndex = room.users.findIndex(u => u.username === username);
       if (userIndex !== -1) room.users[userIndex].id = socket.id;
       else room.users.push({ id: socket.id, username });
@@ -180,18 +183,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 🟢 AI BROADCAST: Send to WHOLE ROOM
+  // 🟢 PRIVATE AI: Uses 'socket.emit' instead of 'io.to'
   socket.on('ask_ai', async ({ roomCode, userQuery }) => {
     const room = rooms[roomCode];
     if (!room) return;
     
-    // Notify room that AI is thinking
-    io.to(roomCode).emit('ai_thinking', { asker: socket.id });
-
+    // Tell ONLY the user "Thinking..." (Client handles this visual now)
+    
     const ans = await solveDoubt(room.currentQuestion.question, userQuery);
     
-    // Broadcast answer to EVERYONE
-    io.to(roomCode).emit('ai_voice_reply', { text: ans });
+    // Reply ONLY to the asker
+    socket.emit('ai_voice_reply', { text: ans });
   });
 });
 
