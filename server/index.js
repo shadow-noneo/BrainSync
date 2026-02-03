@@ -15,11 +15,12 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-const groq = new Groq({ apiKey: "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" });
+// 🟢 NEW API KEY INTEGRATED
+const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-// 🛡️ BACKUP QUESTIONS (Used if AI Fails)
+// 🛡️ BACKUP QUESTIONS (Failsafe)
 const BACKUP_QUESTIONS = [
   {
     question: "Evaluate \\int x^2 dx",
@@ -41,24 +42,10 @@ const BACKUP_QUESTIONS = [
     answer: "\\cos(x)",
     explanation: "The derivative of sine is cosine.",
     correctIndex: 2
-  },
-  {
-    question: "If A = [[1, 2], [3, 4]], find |A|.",
-    options: ["-2", "2", "10", "0"],
-    answer: "-2",
-    explanation: "Determinant = (1)(4) - (2)(3) = 4 - 6 = -2",
-    correctIndex: 0
-  },
-  {
-    question: "Which of these is a Linear Differential Equation?",
-    options: ["y' + y^2 = x", "y' + Py = Q", "y'' + \\sin(y) = 0", "y' = e^y"],
-    answer: "y' + Py = Q",
-    explanation: "Standard form is dy/dx + Py = Q where P, Q are functions of x.",
-    correctIndex: 1
   }
 ];
 
-console.log("🚀 SERVER v10.0 - BACKUP SYSTEM + PRIVATE AI + HUMAN VOICE");
+console.log("🚀 SERVER v11.0 - LIVE WITH NEW KEY");
 
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
@@ -79,7 +66,6 @@ async function generateAIQuestion(subject, topic) {
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
     
-    // Fallback if AI hallucinates an answer not in options
     if (correctIndex === -1) { 
         correctIndex = 0; 
         data.options[0] = data.answer; 
@@ -90,14 +76,12 @@ async function generateAIQuestion(subject, topic) {
     return data;
 
   } catch (e) { 
-    console.log("⚠️ AI Failed (Using Backup Question)");
-    // 🛡️ LOAD BACKUP INSTEAD OF ERROR SCREEN
+    console.log("⚠️ AI Failed (Using Backup):", e.message);
     const backup = BACKUP_QUESTIONS[Math.floor(Math.random() * BACKUP_QUESTIONS.length)];
     return { ...backup, marks: marks }; 
   }
 }
 
-// 🧠 HUMAN-LIKE VOICE LOGIC
 async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
@@ -109,7 +93,7 @@ async function solveDoubt(q, d) {
         
         INSTRUCTIONS:
         1. Explain the METHOD or CONCEPT only.
-        2. Do NOT read the math formulas or LaTeX symbols (like "bracket slash").
+        2. Do NOT read the math formulas or LaTeX symbols.
         3. Speak in plain, simple English.
         4. Keep it under 2 sentences.
         ` 
@@ -117,7 +101,7 @@ async function solveDoubt(q, d) {
       model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
-  } catch (e) { return "I'm having trouble connecting to the brain. Please try again."; }
+  } catch (e) { return "I cannot connect to the AI right now."; }
 }
 
 io.on('connection', (socket) => {
@@ -259,18 +243,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 🔒 PRIVATE AI REPLY
   socket.on('ask_ai', async ({ roomCode, userQuery }) => {
     const room = rooms[roomCode];
     if (!room) return;
-    
-    // 1. Tell EVERYONE someone is asking (so they know why it's quiet)
-    // io.to(roomCode).emit('ai_thinking', { asker: socket.id }); <-- Disabled to keep it truly private
-
-    // 2. Process Answer
     const ans = await solveDoubt(room.currentQuestion.question, userQuery);
-    
-    // 3. Reply ONLY to the asker
     socket.emit('ai_voice_reply', { text: ans });
   });
 });
