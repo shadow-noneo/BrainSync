@@ -8,35 +8,96 @@ const Groq = require("groq-sdk");
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
+const io = new Server(server, { 
+  cors: { origin: "*" }, 
+  maxHttpBufferSize: 1e8, 
+  pingInterval: 2000, 
+  pingTimeout: 5000 
+});
 
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v7.2 - HUMAN-LIKE VOICE AI ACTIVE");
+// 🛡️ BACKUP QUESTIONS (Used if AI Fails)
+const BACKUP_QUESTIONS = [
+  {
+    question: "Evaluate \\int x^2 dx",
+    options: ["\\frac{x^3}{3} + C", "2x + C", "x^3 + C", "\\frac{x^2}{2} + C"],
+    answer: "\\frac{x^3}{3} + C",
+    explanation: "Use the Power Rule: \\int x^n dx = \\frac{x^{n+1}}{n+1}",
+    correctIndex: 0
+  },
+  {
+    question: "Solve for x: 2x + 5 = 15",
+    options: ["x = 4", "x = 5", "x = 10", "x = 2"],
+    answer: "x = 5",
+    explanation: "Subtract 5 from both sides, then divide by 2.",
+    correctIndex: 1
+  },
+  {
+    question: "What is the derivative of \\sin(x)?",
+    options: ["-\\cos(x)", "\\tan(x)", "\\cos(x)", "-\\sin(x)"],
+    answer: "\\cos(x)",
+    explanation: "The derivative of sine is cosine.",
+    correctIndex: 2
+  },
+  {
+    question: "If A = [[1, 2], [3, 4]], find |A|.",
+    options: ["-2", "2", "10", "0"],
+    answer: "-2",
+    explanation: "Determinant = (1)(4) - (2)(3) = 4 - 6 = -2",
+    correctIndex: 0
+  },
+  {
+    question: "Which of these is a Linear Differential Equation?",
+    options: ["y' + y^2 = x", "y' + Py = Q", "y'' + \\sin(y) = 0", "y' = e^y"],
+    answer: "y' + Py = Q",
+    explanation: "Standard form is dy/dx + Py = Q where P, Q are functions of x.",
+    correctIndex: 1
+  }
+];
+
+console.log("🚀 SERVER v10.0 - BACKUP SYSTEM + PRIVATE AI + HUMAN VOICE");
 
 async function generateAIQuestion(subject, topic) {
   const possibleMarks = [5, 6, 7, 8, 10];
   const marks = possibleMarks[Math.floor(Math.random() * possibleMarks.length)];
-  const prompt = `Act as an Engineering Math Professor. Generate ONE multiple-choice question worth ${marks} Marks. Subject: ${subject}, Topic: ${topic}. Difficulty: ${marks >= 8 ? "Hard" : "Medium"}. STRICT JSON: {"question": "LaTeX text", "options": ["A", "B", "C", "D"], "answer": "Exact option text", "explanation": "Sol.", "marks": ${marks}}`;
   
   try {
-    const res = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile", response_format: { type: "json_object" } });
+    const prompt = `Act as an Engineering Math Professor. Generate ONE multiple-choice question worth ${marks} Marks. Subject: ${subject}, Topic: ${topic}. Difficulty: ${marks >= 8 ? "Hard" : "Medium"}. STRICT JSON: {"question": "LaTeX text", "options": ["A", "B", "C", "D"], "answer": "Exact option text", "explanation": "Sol.", "marks": ${marks}}`;
+    
+    const res = await groq.chat.completions.create({ 
+        messages: [{ role: "user", content: prompt }], 
+        model: "llama-3.3-70b-versatile", 
+        response_format: { type: "json_object" } 
+    });
+    
     const data = JSON.parse(res.choices[0].message.content);
     
     const cleanOpts = data.options.map(o => o.trim());
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
-    if (correctIndex === -1) { correctIndex = 0; data.options[0] = data.answer; }
+    
+    // Fallback if AI hallucinates an answer not in options
+    if (correctIndex === -1) { 
+        correctIndex = 0; 
+        data.options[0] = data.answer; 
+    }
 
     data.correctIndex = correctIndex; 
     data.marks = marks;
     return data;
-  } catch (e) { return { question: "Error. Try Next.", options: ["Error", "Try Again", "Next", "Skip"], answer: "Next", correctIndex: 2, explanation: "Server Error", marks }; }
+
+  } catch (e) { 
+    console.log("⚠️ AI Failed (Using Backup Question)");
+    // 🛡️ LOAD BACKUP INSTEAD OF ERROR SCREEN
+    const backup = BACKUP_QUESTIONS[Math.floor(Math.random() * BACKUP_QUESTIONS.length)];
+    return { ...backup, marks: marks }; 
+  }
 }
 
-// 🟢 NEW AI LOGIC: METHOD ONLY, NO MATH SYMBOLS
+// 🧠 HUMAN-LIKE VOICE LOGIC
 async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
@@ -47,17 +108,16 @@ async function solveDoubt(q, d) {
         Student Doubt: ${d}
         
         INSTRUCTIONS:
-        1. Explain the METHOD or CONCEPT to solve this.
-        2. Do NOT read the formulas or equations.
-        3. Do NOT use LaTeX, brackets, or math symbols like x^2.
-        4. Speak in plain English (e.g., say "Use the chain rule" instead of reading the formula).
-        5. Keep it short (2 sentences max).
+        1. Explain the METHOD or CONCEPT only.
+        2. Do NOT read the math formulas or LaTeX symbols (like "bracket slash").
+        3. Speak in plain, simple English.
+        4. Keep it under 2 sentences.
         ` 
       }], 
       model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
-  } catch (e) { return "I can't explain that right now."; }
+  } catch (e) { return "I'm having trouble connecting to the brain. Please try again."; }
 }
 
 io.on('connection', (socket) => {
@@ -99,7 +159,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', ({ roomCode, username, text, image }) => {
-    socket.to(roomCode).emit('receive_message', { username, text, image, time: new Date().toLocaleTimeString() });
+    socket.to(roomCode).volatile.emit('receive_message', { username, text, image, time: new Date().toLocaleTimeString() });
   });
 
   socket.on('send_audio_chunk', ({ roomCode, audioChunk, username }) => {
@@ -114,14 +174,13 @@ io.on('connection', (socket) => {
   socket.on('start_quiz', async ({ roomCode, subject, difficulty }) => {
     const room = rooms[roomCode];
     if (!room) return;
-    if (difficulty) room.currentTopic = difficulty;
     
     if (room.questionLimit !== -1 && room.questionCount >= room.questionLimit) {
       io.to(roomCode).emit('game_over', { scores: room.scores });
       return;
     }
 
-    const qData = await generateAIQuestion(subject, room.currentTopic);
+    const qData = await generateAIQuestion(subject, room.currentTopic || "General");
     room.history.push(qData);
     room.historyIndex = room.history.length - 1;
     room.currentQuestion = qData;
@@ -200,15 +259,18 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 🟢 PRIVATE AI (Corrected Logic)
+  // 🔒 PRIVATE AI REPLY
   socket.on('ask_ai', async ({ roomCode, userQuery }) => {
     const room = rooms[roomCode];
     if (!room) return;
     
-    // AI processes the logic
+    // 1. Tell EVERYONE someone is asking (so they know why it's quiet)
+    // io.to(roomCode).emit('ai_thinking', { asker: socket.id }); <-- Disabled to keep it truly private
+
+    // 2. Process Answer
     const ans = await solveDoubt(room.currentQuestion.question, userQuery);
     
-    // 🔒 PRIVATE REPLY (Only to the person who asked)
+    // 3. Reply ONLY to the asker
     socket.emit('ai_voice_reply', { text: ans });
   });
 });
