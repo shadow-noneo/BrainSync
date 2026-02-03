@@ -15,39 +15,33 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-// 🟢 NEW API KEY INTEGRATED
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-// 🛡️ BACKUP QUESTIONS (Failsafe)
+// 🛡️ BACKUP QUESTIONS
 const BACKUP_QUESTIONS = [
   {
     question: "Evaluate \\int x^2 dx",
     options: ["\\frac{x^3}{3} + C", "2x + C", "x^3 + C", "\\frac{x^2}{2} + C"],
     answer: "\\frac{x^3}{3} + C",
-    explanation: "Use the Power Rule: \\int x^n dx = \\frac{x^{n+1}}{n+1}",
+    explanation: "Power Rule: \\int x^n dx = \\frac{x^{n+1}}{n+1}",
     correctIndex: 0
   },
   {
-    question: "Solve for x: 2x + 5 = 15",
-    options: ["x = 4", "x = 5", "x = 10", "x = 2"],
-    answer: "x = 5",
-    explanation: "Subtract 5 from both sides, then divide by 2.",
-    correctIndex: 1
-  },
-  {
-    question: "What is the derivative of \\sin(x)?",
-    options: ["-\\cos(x)", "\\tan(x)", "\\cos(x)", "-\\sin(x)"],
-    answer: "\\cos(x)",
-    explanation: "The derivative of sine is cosine.",
+    question: "Solve 2x = 10",
+    options: ["x=2", "x=10", "x=5", "x=0"],
+    answer: "x=5",
+    explanation: "Divide by 2.",
     correctIndex: 2
   }
 ];
 
-console.log("🚀 SERVER v11.0 - LIVE WITH NEW KEY");
+console.log("🚀 SERVER v12.0 - MULTI-TOPIC & CUSTOM LIMITS");
 
-async function generateAIQuestion(subject, topic) {
+async function generateAIQuestion(subject, topicsArray) {
+  // 🎲 Randomly pick ONE topic from the user's list
+  const topic = topicsArray[Math.floor(Math.random() * topicsArray.length)];
   const possibleMarks = [5, 6, 7, 8, 10];
   const marks = possibleMarks[Math.floor(Math.random() * possibleMarks.length)];
   
@@ -73,35 +67,24 @@ async function generateAIQuestion(subject, topic) {
 
     data.correctIndex = correctIndex; 
     data.marks = marks;
+    data.topic = topic; // Send back which topic was chosen
     return data;
 
   } catch (e) { 
-    console.log("⚠️ AI Failed (Using Backup):", e.message);
+    console.log("⚠️ AI Failed:", e.message);
     const backup = BACKUP_QUESTIONS[Math.floor(Math.random() * BACKUP_QUESTIONS.length)];
-    return { ...backup, marks: marks }; 
+    return { ...backup, marks: marks, topic: "General" }; 
   }
 }
 
 async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
-      messages: [{ 
-        role: "user", 
-        content: `
-        Context Question: ${q}
-        Student Doubt: ${d}
-        
-        INSTRUCTIONS:
-        1. Explain the METHOD or CONCEPT only.
-        2. Do NOT read the math formulas or LaTeX symbols.
-        3. Speak in plain, simple English.
-        4. Keep it under 2 sentences.
-        ` 
-      }], 
+      messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain METHOD ONLY. No formulas reading. Plain English. 2 sentences.` }], 
       model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
-  } catch (e) { return "I cannot connect to the AI right now."; }
+  } catch (e) { return "I cannot connect to the AI."; }
 }
 
 io.on('connection', (socket) => {
@@ -129,7 +112,20 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
     if (!rooms[roomCode]) {
-        rooms[roomCode] = { users: [], hostId: socket.id, hostUsername: username, currentQuestion: null, scores: {}, history: [], historyIndex: -1, questionLimit: -1, questionCount: 0, canMoveOn: false };
+        // Initialize with default settings
+        rooms[roomCode] = { 
+            users: [], 
+            hostId: socket.id, 
+            hostUsername: username, 
+            currentQuestion: null, 
+            scores: {}, 
+            history: [], 
+            historyIndex: -1, 
+            questionLimit: -1, 
+            questionCount: 0, 
+            canMoveOn: false,
+            selectedTopics: ["General"] // Default
+        };
     }
     const room = rooms[roomCode];
     room.users.push({ id: socket.id, username });
@@ -155,21 +151,29 @@ io.on('connection', (socket) => {
     if (room && room.hostId) io.to(room.hostId).emit('cheat_alert', { username });
   });
 
-  socket.on('start_quiz', async ({ roomCode, subject, difficulty }) => {
+  // 🟢 NEW START LOGIC: Supports Array of Topics + Custom Limit
+  socket.on('start_quiz', async ({ roomCode, subject, topics, limit }) => {
     const room = rooms[roomCode];
     if (!room) return;
     
+    // Save settings to room so "Next" button knows what to do
+    if (topics) room.selectedTopics = topics;
+    if (limit !== undefined) room.questionLimit = parseInt(limit); // -1 if empty or infinite
+    
+    // Check if limit reached
     if (room.questionLimit !== -1 && room.questionCount >= room.questionLimit) {
       io.to(roomCode).emit('game_over', { scores: room.scores });
       return;
     }
 
-    const qData = await generateAIQuestion(subject, room.currentTopic || "General");
+    const qData = await generateAIQuestion(subject, room.selectedTopics);
+    
     room.history.push(qData);
     room.historyIndex = room.history.length - 1;
     room.currentQuestion = qData;
     room.questionCount++;
-    room.timeLeft = 420; room.timerRunning = true;
+    room.timeLeft = 420; 
+    room.timerRunning = true;
     room.canMoveOn = false;
 
     io.to(roomCode).emit('new_question', qData);
@@ -185,8 +189,6 @@ io.on('connection', (socket) => {
     }, 1000);
   });
 
-  socket.on('set_settings', ({ roomCode, limit }) => { if(rooms[roomCode]) rooms[roomCode].questionLimit = limit; });
-  
   socket.on('nav_prev', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room && room.historyIndex > 0) {
