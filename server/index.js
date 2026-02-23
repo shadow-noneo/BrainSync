@@ -15,13 +15,12 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-// 🟢 MAKE SURE THIS KEY IS FRESH!
-// If it fails, get a new one at https://console.groq.com
-const groq = new Groq({ apiKey: "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" });
+// 🟢 YOUR NEW API KEY IS UPDATED HERE
+const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v19.0 - PURE ONLINE AI (FAST MODEL)");
+console.log("🚀 SERVER v19.1 - PURE ONLINE AI (NEW KEY)");
 
 // 🟢 JSON PARSER
 function cleanJSON(text) {
@@ -41,7 +40,7 @@ async function generateAIQuestion(subject, topicsArray) {
   try {
     const prompt = `Act as an Engineering Professor. Generate ONE multiple-choice question (${marks} Marks). Subject: ${subject}, Topic: ${topic}. Difficulty: Medium. STRICT JSON: {"question": "text", "options": ["A", "B", "C", "D"], "answer": "text", "explanation": "text", "marks": ${marks}}`;
     
-    // 🟢 SWITCHED TO FASTER MODEL (More Reliable)
+    // 🟢 USING FASTER MODEL
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: "llama3-8b-8192" 
@@ -62,9 +61,9 @@ async function generateAIQuestion(subject, topicsArray) {
 
   } catch (e) { 
     console.error("❌ AI ERROR:", e.message);
-    // 🟢 NO OFFLINE QUESTIONS. Return Error Card.
+    // 🟢 RETURN ERROR CARD IF AI FAILS
     return { 
-        question: `AI Error: ${e.message}. Please check Server Logs or API Key.`, 
+        question: `AI Error: ${e.message}. Please check Server Logs.`, 
         options: ["Retry", "Check Key", "Restart", "Contact Host"], 
         answer: "Retry", 
         explanation: "The server failed to connect to Groq AI.", 
@@ -127,7 +126,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // 🟢 GENERATE LIVE QUESTION
     const qData = await generateAIQuestion(subject, room.selectedTopics);
     
     room.history.push(qData);
