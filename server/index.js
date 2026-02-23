@@ -15,14 +15,12 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-// 🟢 API KEY
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v20.0 - USING FULLY SUPPORTED MODEL (llama-3.3-70b-versatile)");
+console.log("🚀 SERVER v21.0 - FIX AI ANSWER LETTER BUG");
 
-// 🟢 JSON PARSER
 function cleanJSON(text) {
     try { return JSON.parse(text); } catch (e) {
         const first = text.indexOf('{'), last = text.lastIndexOf('}');
@@ -38,9 +36,9 @@ async function generateAIQuestion(subject, topicsArray) {
   const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `Act as an Engineering Professor. Generate ONE multiple-choice question (${marks} Marks). Subject: ${subject}, Topic: ${topic}. Difficulty: Medium. STRICT JSON: {"question": "text", "options": ["A", "B", "C", "D"], "answer": "text", "explanation": "text", "marks": ${marks}}`;
+    // 🟢 FIX 1: MUCH STRICTER PROMPT
+    const prompt = `Act as an Engineering Professor. Generate ONE multiple-choice question (${marks} Marks). Subject: ${subject}, Topic: ${topic}. Difficulty: Medium. STRICT JSON format. DO NOT use letters like "A" or "C" for the answer field, write the EXACT string of the correct option. Example format: {"question": "What is 1+1?", "options": ["1", "2", "3", "4"], "answer": "2", "explanation": "Math.", "marks": ${marks}}`;
     
-    // 🟢 UPDATED MODEL TO AVOID DECOMMISSION ERROR
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: "llama-3.3-70b-versatile" 
@@ -52,6 +50,16 @@ async function generateAIQuestion(subject, topicsArray) {
     const cleanOpts = data.options.map(o => o.trim());
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
+    
+    // 🟢 FIX 2: IF AI STILL SAYS "C", SMART-MAP IT TO THE 3RD OPTION
+    if (correctIndex === -1 && cleanAns.length === 1) {
+        const letterMatch = cleanAns.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+        if (letterMatch >= 0 && letterMatch < cleanOpts.length) {
+            correctIndex = letterMatch;
+            data.answer = cleanOpts[correctIndex]; // Replace "C" with the actual text
+        }
+    }
+
     if (correctIndex === -1) { correctIndex = 0; data.options[0] = data.answer; }
 
     data.correctIndex = correctIndex; 
@@ -77,7 +85,6 @@ async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain METHOD ONLY. No formulas. 2 sentences.` }], 
-        // 🟢 UPDATED MODEL HERE TOO
         model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
