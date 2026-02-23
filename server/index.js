@@ -19,7 +19,7 @@ const groq = new Groq({ apiKey: "gsk_s3SpX0Z22VDqHuDV6C5tWGdyb3FYMLHAhix2xbZE63X
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v21.0 - FIX AI ANSWER LETTER BUG");
+console.log("🚀 SERVER v23.0 - PYQ EXAM MODE ENABLED");
 
 function cleanJSON(text) {
     try { return JSON.parse(text); } catch (e) {
@@ -35,13 +35,21 @@ async function generateAIQuestion(subject, topicsArray) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
   const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
   
+  const randomSeed = Math.floor(Math.random() * 9999999);
+  
   try {
-    // 🟢 FIX 1: MUCH STRICTER PROMPT
-    const prompt = `Act as an Engineering Professor. Generate ONE multiple-choice question (${marks} Marks). Subject: ${subject}, Topic: ${topic}. Difficulty: Medium. STRICT JSON format. DO NOT use letters like "A" or "C" for the answer field, write the EXACT string of the correct option. Example format: {"question": "What is 1+1?", "options": ["1", "2", "3", "4"], "answer": "2", "explanation": "Math.", "marks": ${marks}}`;
+    // 🟢 NEW PYQ INSTRUCTIONS FOR THE AI
+    const prompt = `Act as a strict Engineering University Board Examiner. Generate ONE UNIQUE multiple-choice question (${marks} Marks) that perfectly mimics a standard university Previous Year Question (PYQ). 
+    Subject: ${subject}, Topic: ${topic}. 
+    Difficulty: Real Exam Level (Medium/Hard). 
+    CRITICAL INSTRUCTION: This must look and feel exactly like a real past paper exam question. It should involve realistic engineering values or standard derivations. Make it completely unique (Randomizer Seed: ${randomSeed}). 
+    STRICT JSON format. DO NOT use single letters like "A" or "C" for the answer field, write the EXACT string of the correct option. 
+    Example format: {"question": "Evaluate the integral...", "options": ["x/2", "x/3", "x^2", "1"], "answer": "x/2", "explanation": "Using the standard reduction formula...", "marks": ${marks}}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
-        model: "llama-3.3-70b-versatile" 
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.9 
     });
     
     const data = cleanJSON(res.choices[0].message.content);
@@ -51,12 +59,11 @@ async function generateAIQuestion(subject, topicsArray) {
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
     
-    // 🟢 FIX 2: IF AI STILL SAYS "C", SMART-MAP IT TO THE 3RD OPTION
     if (correctIndex === -1 && cleanAns.length === 1) {
-        const letterMatch = cleanAns.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+        const letterMatch = cleanAns.toUpperCase().charCodeAt(0) - 65; 
         if (letterMatch >= 0 && letterMatch < cleanOpts.length) {
             correctIndex = letterMatch;
-            data.answer = cleanOpts[correctIndex]; // Replace "C" with the actual text
+            data.answer = cleanOpts[correctIndex]; 
         }
     }
 
@@ -124,6 +131,7 @@ io.on('connection', (socket) => {
         room.historyIndex = -1;
         room.currentQuestion = null;
         room.canMoveOn = false;
+        room.subject = subject; 
         if (limit !== undefined) room.questionLimit = parseInt(limit);
         if (topics) room.selectedTopics = topics;
     }
@@ -133,7 +141,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const qData = await generateAIQuestion(subject, room.selectedTopics);
+    const qData = await generateAIQuestion(room.subject || subject, room.selectedTopics);
     
     room.history.push(qData);
     room.historyIndex = room.history.length - 1;
