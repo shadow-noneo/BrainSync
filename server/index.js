@@ -15,12 +15,12 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-// 🟢 YOUR NEW API KEY IS UPDATED HERE
+// 🟢 Using your working key
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v19.2 - PURE ONLINE AI (FRESH KEY)");
+console.log("🚀 SERVER v19.3 - NEW MODEL ACTIVE (llama-3.1-8b-instant)");
 
 // 🟢 JSON PARSER
 function cleanJSON(text) {
@@ -40,10 +40,10 @@ async function generateAIQuestion(subject, topicsArray) {
   try {
     const prompt = `Act as an Engineering Professor. Generate ONE multiple-choice question (${marks} Marks). Subject: ${subject}, Topic: ${topic}. Difficulty: Medium. STRICT JSON: {"question": "text", "options": ["A", "B", "C", "D"], "answer": "text", "explanation": "text", "marks": ${marks}}`;
     
-    // 🟢 USING FASTER MODEL
+    // 🟢 CHANGED TO THE NEW, SUPPORTED MODEL
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
-        model: "llama3-8b-8192" 
+        model: "llama-3.1-8b-instant" 
     });
     
     const data = cleanJSON(res.choices[0].message.content);
@@ -61,7 +61,6 @@ async function generateAIQuestion(subject, topicsArray) {
 
   } catch (e) { 
     console.error("❌ AI ERROR:", e.message);
-    // 🟢 RETURN ERROR CARD IF AI FAILS
     return { 
         question: `AI Error: ${e.message}. Please check Server Logs.`, 
         options: ["Retry", "Check Key", "Restart", "Contact Host"], 
@@ -78,7 +77,8 @@ async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain METHOD ONLY. No formulas. 2 sentences.` }], 
-        model: "llama3-8b-8192" 
+        // 🟢 CHANGED HERE TOO
+        model: "llama-3.1-8b-instant" 
     });
     return res.choices[0].message.content;
   } catch (e) { return "I cannot connect to the AI brain right now."; }
