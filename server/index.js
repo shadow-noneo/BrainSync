@@ -15,12 +15,12 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-// 🟢 Using your working key
+// 🟢 API KEY
 const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v19.3 - NEW MODEL ACTIVE (llama-3.1-8b-instant)");
+console.log("🚀 SERVER v20.0 - USING FULLY SUPPORTED MODEL (llama-3.3-70b-versatile)");
 
 // 🟢 JSON PARSER
 function cleanJSON(text) {
@@ -40,10 +40,10 @@ async function generateAIQuestion(subject, topicsArray) {
   try {
     const prompt = `Act as an Engineering Professor. Generate ONE multiple-choice question (${marks} Marks). Subject: ${subject}, Topic: ${topic}. Difficulty: Medium. STRICT JSON: {"question": "text", "options": ["A", "B", "C", "D"], "answer": "text", "explanation": "text", "marks": ${marks}}`;
     
-    // 🟢 CHANGED TO THE NEW, SUPPORTED MODEL
+    // 🟢 UPDATED MODEL TO AVOID DECOMMISSION ERROR
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
-        model: "llama-3.1-8b-instant" 
+        model: "llama-3.3-70b-versatile" 
     });
     
     const data = cleanJSON(res.choices[0].message.content);
@@ -77,8 +77,8 @@ async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain METHOD ONLY. No formulas. 2 sentences.` }], 
-        // 🟢 CHANGED HERE TOO
-        model: "llama-3.1-8b-instant" 
+        // 🟢 UPDATED MODEL HERE TOO
+        model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
   } catch (e) { return "I cannot connect to the AI brain right now."; }
