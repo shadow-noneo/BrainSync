@@ -16,11 +16,11 @@ const io = new Server(server, {
 });
 
 // 🟢 YOUR NEW API KEY IS UPDATED HERE
-const groq = new Groq({ apiKey: "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" });
+const groq = new Groq({ apiKey: "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" });
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v19.1 - PURE ONLINE AI (NEW KEY)");
+console.log("🚀 SERVER v19.2 - PURE ONLINE AI (FRESH KEY)");
 
 // 🟢 JSON PARSER
 function cleanJSON(text) {
