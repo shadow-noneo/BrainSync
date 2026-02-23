@@ -19,7 +19,7 @@ const groq = new Groq({ apiKey: "gsk_s3SpX0Z22VDqHuDV6C5tWGdyb3FYMLHAhix2xbZE63X
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v23.0 - PYQ EXAM MODE ENABLED");
+console.log("🚀 SERVER v24.0 - PYQ MATH FORMATTING FIX");
 
 function cleanJSON(text) {
     try { return JSON.parse(text); } catch (e) {
@@ -38,13 +38,14 @@ async function generateAIQuestion(subject, topicsArray) {
   const randomSeed = Math.floor(Math.random() * 9999999);
   
   try {
-    // 🟢 NEW PYQ INSTRUCTIONS FOR THE AI
+    // 🟢 NEW PROMPT: Forces AI to use $ LaTeX $ for beautiful math options
     const prompt = `Act as a strict Engineering University Board Examiner. Generate ONE UNIQUE multiple-choice question (${marks} Marks) that perfectly mimics a standard university Previous Year Question (PYQ). 
-    Subject: ${subject}, Topic: ${topic}. 
-    Difficulty: Real Exam Level (Medium/Hard). 
-    CRITICAL INSTRUCTION: This must look and feel exactly like a real past paper exam question. It should involve realistic engineering values or standard derivations. Make it completely unique (Randomizer Seed: ${randomSeed}). 
-    STRICT JSON format. DO NOT use single letters like "A" or "C" for the answer field, write the EXACT string of the correct option. 
-    Example format: {"question": "Evaluate the integral...", "options": ["x/2", "x/3", "x^2", "1"], "answer": "x/2", "explanation": "Using the standard reduction formula...", "marks": ${marks}}`;
+    Subject: ${subject}, Topic: ${topic}. Difficulty: Real Exam Level. 
+    CRITICAL INSTRUCTIONS: 
+    1. Make it unique (Seed: ${randomSeed}). 
+    2. STRICT JSON format. DO NOT use single letters like "A" or "C" for the answer. 
+    3. You MUST format ALL mathematical formulas, fractions, and variables using LaTeX wrapped in dollar signs ($).
+    Example format: {"question": "Evaluate $\\int x^2 dx$", "options": ["$\\frac{x^3}{3} + C$", "$2x + C$", "$\\frac{x^2}{2} + C$", "$x^3 + C$"], "answer": "$\\frac{x^3}{3} + C$", "explanation": "Using the power rule...", "marks": ${marks}}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
