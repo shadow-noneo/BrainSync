@@ -98,7 +98,6 @@ function App() {
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
   
-  // 🟢 NEW: VOICE NOTE STATE
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -171,7 +170,12 @@ function App() {
     });
     
     socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 AI Answered", { icon: '🤫' }); });
-    socket.on('host_notification', ({ type, username }) => toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
+    
+    // 🟢 FIXED SYNTAX ERROR HERE
+    socket.on('host_notification', ({ type, username }) => { 
+        toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); 
+    });
+    
     socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
 
     socket.on('receive_message', (msg) => { setMessages(prev => [...prev, msg]); if(!chatOpen) toast("New Message 💬", { icon: '💬' }); });
@@ -213,7 +217,6 @@ function App() {
     r.start();
   };
 
-  // 🟢 NEW: WHATSAPP-STYLE VOICE NOTES LOGIC
   const startRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -234,7 +237,6 @@ function App() {
                 setMessages(prev => [...prev, msg]);
                 socket.emit('send_message', { roomCode, ...msg });
             };
-            // Release the microphone
             stream.getTracks().forEach(track => track.stop());
         };
 
@@ -291,7 +293,6 @@ function App() {
   const requestStuck = () => socket.emit('student_signal', { roomCode, type: 'stuck', username });
   const requestChange = () => socket.emit('student_signal', { roomCode, type: 'change', username });
 
-  // 🟢 SEND CHAT MESSAGE
   const sendMessage = () => {
       if(chatInput.trim()) {
           const msg = { username, text: chatInput, image: null, audio: null, time: new Date().toLocaleTimeString() };
@@ -371,7 +372,6 @@ function App() {
     <div className="app-container">
       <Toaster position="top-center" />
       <style>{`
-        /* MAIN APP STYLES */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; background: #1a1a1a; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .app-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; width: 100vw; box-sizing: border-box; }
         .card { background: #222; padding: 2rem; border-radius: 16px; width: 100%; max-width: 650px; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.6); position: relative; }
@@ -390,7 +390,6 @@ function App() {
         .marks-badge { background: #FFD60A; color: black; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
         .host-controls { display: flex; gap: 10px; margin-top: 15px; justify-content: center; padding-top:15px; border-top:1px solid #333; }
         
-        /* FLOATING BUTTONS */
         .menu-btn { position: fixed; top: 15px; left: 15px; font-size: 16px; background: rgba(44, 44, 46, 0.8); backdrop-filter: blur(10px); border: 1px solid #444; color: white; padding: 8px 14px; border-radius: 12px; z-index: 20000; font-weight: 500; }
         .profile-btn { position: fixed; top: 15px; right: 15px; font-size: 20px; background: rgba(44, 44, 46, 0.8); backdrop-filter: blur(10px); border: 1px solid #444; color: white; padding: 8px; border-radius: 50%; width: 45px; height: 45px; z-index: 20000; cursor: pointer; display:flex; align-items:center; justify-content:center; }
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -399,7 +398,6 @@ function App() {
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1c1c1e; padding: 20px; z-index: 10001; border-right: 1px solid #333; overflow-y: auto; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         
-        /* 🟢 NEW MAC/APPLE STYLE CHAT UI */
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-header h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
@@ -420,7 +418,6 @@ function App() {
         .chat-input-field { flex: 1; padding: 10px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: #3a3a3c; color: white; font-size: 15px; outline: none; transition: 0.2s; }
         .chat-input-field:focus { border-color: rgba(10, 132, 255, 0.5); background: #444446; }
         
-        /* WHATSAPP STYLE MIC & SEND BTN */
         .send-btn { background: #0A84FF; border: none; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; }
         .mic-btn { background: transparent; border: none; color: #0A84FF; font-size: 22px; cursor: pointer; padding: 5px; transition: 0.2s; -webkit-user-select: none; user-select: none; }
         .mic-btn.recording { color: #FF3B30; animation: pulse 1s infinite; transform: scale(1.2); }
@@ -490,7 +487,6 @@ function App() {
         </div>
       )}
 
-      {/* 🟢 NEW APPLE STYLE CHAT BOX */}
       {chatOpen && (
           <div className="chat-sidebar">
              <div className="chat-header">
@@ -504,7 +500,6 @@ function App() {
                       <div className="msg-user">{m.username} • {m.time}</div>
                       {m.text && <div>{m.text}</div>}
                       {m.image && <img src={m.image} className="msg-img" onClick={() => window.open(m.image)} />}
-                      {/* 🟢 AUDIO PLAYER FOR VOICE NOTES */}
                       {m.audio && <audio src={m.audio} controls className="msg-audio" />}
                    </div>
                 ))}
@@ -531,7 +526,6 @@ function App() {
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()} 
                 />
                 
-                {/* 🟢 WHATSAPP STYLE DYNAMIC BUTTON (Mic or Send) */}
                 {chatInput.trim() ? (
                     <button className="send-btn" onClick={sendMessage}>↑</button>
                 ) : (
@@ -629,7 +623,6 @@ function App() {
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
                 
                 <div style={{display:'flex', gap:5}}>
-                  {/* 🟢 OLD CONTINUOUS MIC BUTTON REMOVED HERE */}
                   <button onClick={toggleAI} style={{background: isListeningAI ? '#FF3B30' : (aiSpeaking ? '#FFD60A' : '#2c2c2e'), color: aiSpeaking ? 'black' : 'white', border:'1px solid #444', borderRadius:'20px', padding:'8px 14px', fontWeight: 500}}>
                     {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask AI")}
                   </button>
