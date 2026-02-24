@@ -18,76 +18,69 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: "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" });
 const rooms = {}; 
 
-console.log("🚀 SERVER v28.0 - ZERO ERROR PROTOCOL ACTIVE");
-
-// Unbreakable JSON Extractor
-function repairJSON(text) {
-    try { return JSON.parse(text); } 
-    catch (e) {
-        try {
-            const start = text.indexOf('{');
-            const end = text.lastIndexOf('}');
-            if (start !== -1 && end !== -1) {
-                let jsonPart = text.substring(start, end + 1)
-                    .replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
-                return JSON.parse(jsonPart);
-            }
-        } catch (e2) { return null; }
-        return null;
-    }
-}
+console.log("🚀 SERVER v30.0 - AUTO-SHUFFLE & STRICT LATEX");
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
   const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `Act as an Engineering Examiner. Generate ONE UNIQUE multiple-choice question (${marks} Marks).
+    const prompt = `Act as an elite Engineering Professor. Create ONE multiple-choice question (${marks} Marks).
     Subject: ${subject}. Topic: ${topic}.
-    CRITICAL: 
-    1. Only return a JSON object. 
-    2. Write math normally or use basic symbols. IF you use LaTeX, use DOUBLE BACKSLASHES (e.g. \\\\frac{1}{2}). 
-    3. The answer string must perfectly match one of the options.
     
-    JSON Schema: {"question": "text", "options": ["A", "B", "C", "D"], "answer": "A", "explanation": "text", "marks": ${marks}, "topic": "${topic}"}`;
+    ABSOLUTE RULES:
+    1. Output ONLY JSON.
+    2. MATH FORMATTING: You MUST use LaTeX wrapped in dollar signs for ALL equations, variables, and fractions. 
+       - CORRECT: $\\\\frac{1}{13} e^{-2x} \\\\sin(3x)$
+       - WRONG: (1/13)*e^(-2x)*sin(3x)
+       - CORRECT: $\\\\int_0^1 x^2 dx$
+    3. You MUST double-escape LaTeX backslashes (e.g., \\\\frac, \\\\sin, \\\\cos).
+    4. DO NOT prefix options with A, B, C, D. Just the raw text/math.
+       - CORRECT: ["$2x$", "$x^2$", "$x^3$", "$4x$"]
+       - WRONG: ["A. $2x$", "B. $x^2$", "C. $x^3$", "D. $4x$"]
+
+    JSON Schema:
+    {"question": "What is the derivative of $e^{2x}$?", "options": ["$2e^{2x}$", "$e^{2x}$", "$\\\\frac{1}{2}e^{2x}$", "$4e^{2x}$"], "answer": "$2e^{2x}$", "explanation": "Using the chain rule...", "marks": ${marks}, "topic": "${topic}"}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
-        // If attempt 1 fails, drop to the ultra-fast 8b model to guarantee a response
         model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
         temperature: 0.7,
         response_format: { type: "json_object" } 
     });
     
-    const data = repairJSON(res.choices[0].message.content);
-    if (!data) throw new Error("JSON Parse Failed");
+    let data = JSON.parse(res.choices[0].message.content);
 
-    const cleanOpts = data.options.map(o => String(o).trim());
-    const cleanAns = String(data.answer).trim();
-    let correctIndex = cleanOpts.indexOf(cleanAns);
+    // 🟢 ANTI-LAZY AI PROTOCOL: Clean prefixes and FORCE Shuffle
+    // Remove "A. ", "b)", etc., if the AI was stubborn
+    const cleanOpts = data.options.map(o => String(o).replace(/^[A-D][\.\)]\s*/i, '').trim());
+    const cleanAns = String(data.answer).replace(/^[A-D][\.\)]\s*/i, '').trim();
+
+    // Map options to objects to track the correct one during shuffle
+    let optionsWithAnswer = cleanOpts.map(opt => ({ text: opt, isCorrect: opt === cleanAns }));
     
-    if (correctIndex === -1) { 
-        correctIndex = 0; 
-        data.options[0] = data.answer; 
+    // Failsafe: If answer wasn't in options, force it in
+    if (!optionsWithAnswer.some(o => o.isCorrect)) {
+        optionsWithAnswer[0].isCorrect = true;
+        optionsWithAnswer[0].text = cleanAns;
     }
-
-    data.correctIndex = correctIndex; 
+    
+    // Shuffle the array so the correct answer is random
+    optionsWithAnswer.sort(() => Math.random() - 0.5);
+    
+    // Reassign the clean, shuffled data
+    data.options = optionsWithAnswer.map(o => o.text);
+    data.correctIndex = optionsWithAnswer.findIndex(o => o.isCorrect);
+    data.answer = data.options[data.correctIndex];
     data.topic = topic;
+
     return data;
 
   } catch (e) { 
-    // AUTO-RETRY LOOP: If it fails, silently try again instantly.
-    if (attempt < 2) {
-        console.log(`⚠️ Attempt 1 failed. Auto-retrying...`);
-        return await generateAIQuestion(subject, topicsArray, 2);
-    }
-    // Absolute failsafe (You will almost never see this now)
+    if (attempt < 2) return await generateAIQuestion(subject, topicsArray, 2);
     return { 
-        question: "Could not generate a complex question. Please proceed to the next.", 
-        options: ["Next", "Next", "Next", "Next"], 
-        answer: "Next", 
-        explanation: "Network hiccup.", 
-        correctIndex: 0, marks: 0, topic: "Recovery Mode" 
+        question: "Could not generate a complex question. Please click Next.", 
+        options: ["Next", "Next", "Next", "Next"], answer: "Next", explanation: "Error.", correctIndex: 0, marks: 0, topic: "Recovery Mode" 
     }; 
   }
 }
@@ -95,8 +88,8 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
 async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
-        messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain simply in 2 sentences.` }], 
-        model: "llama-3.1-8b-instant" 
+        messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain simply in 2 sentences. Use double escaped LaTeX (e.g., $\\\\frac{1}{2}$) for math.` }], 
+        model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
   } catch (e) { return "AI unavailable."; }
