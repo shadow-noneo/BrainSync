@@ -18,7 +18,7 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: "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" });
 const rooms = {}; 
 
-console.log("🚀 SERVER v30.0 - AUTO-SHUFFLE & STRICT LATEX");
+console.log("🚀 SERVER v31.0 - ANTI-LAZY AI & SHUFFLE");
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
@@ -29,15 +29,13 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
     Subject: ${subject}. Topic: ${topic}.
     
     ABSOLUTE RULES:
-    1. Output ONLY JSON.
-    2. MATH FORMATTING: You MUST use LaTeX wrapped in dollar signs for ALL equations, variables, and fractions. 
-       - CORRECT: $\\\\frac{1}{13} e^{-2x} \\\\sin(3x)$
-       - WRONG: (1/13)*e^(-2x)*sin(3x)
-       - CORRECT: $\\\\int_0^1 x^2 dx$
+    1. Output ONLY valid JSON.
+    2. MATH FORMATTING: You MUST use LaTeX for ALL equations, variables, and fractions.
     3. You MUST double-escape LaTeX backslashes (e.g., \\\\frac, \\\\sin, \\\\cos).
-    4. DO NOT prefix options with A, B, C, D. Just the raw text/math.
-       - CORRECT: ["$2x$", "$x^2$", "$x^3$", "$4x$"]
-       - WRONG: ["A. $2x$", "B. $x^2$", "C. $x^3$", "D. $4x$"]
+    4. CRITICAL: Wrap the ENTIRE equation in ONE pair of dollar signs. Do not leave math outside the dollar signs!
+       - CORRECT: "$\\\\frac{1}{13} e^{-2x} \\\\sin(3x)$"
+       - WRONG: "$y$ = \\\\frac{1}{13} e^{-2x}" 
+    5. DO NOT prefix options with A, B, C, D. Just the raw text/math.
 
     JSON Schema:
     {"question": "What is the derivative of $e^{2x}$?", "options": ["$2e^{2x}$", "$e^{2x}$", "$\\\\frac{1}{2}e^{2x}$", "$4e^{2x}$"], "answer": "$2e^{2x}$", "explanation": "Using the chain rule...", "marks": ${marks}, "topic": "${topic}"}`;
@@ -51,24 +49,28 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
     
     let data = JSON.parse(res.choices[0].message.content);
 
-    // 🟢 ANTI-LAZY AI PROTOCOL: Clean prefixes and FORCE Shuffle
-    // Remove "A. ", "b)", etc., if the AI was stubborn
-    const cleanOpts = data.options.map(o => String(o).replace(/^[A-D][\.\)]\s*/i, '').trim());
-    const cleanAns = String(data.answer).replace(/^[A-D][\.\)]\s*/i, '').trim();
-
-    // Map options to objects to track the correct one during shuffle
-    let optionsWithAnswer = cleanOpts.map(opt => ({ text: opt, isCorrect: opt === cleanAns }));
+    // 🟢 AGGRESSIVE ANTI-LAZY STRIPPER: Destroy "A.", "a)", "C. ", etc. from the AI's output
+    const cleanOpts = data.options.map(o => {
+        let str = String(o).trim();
+        while (/^[A-Da-d]\s*[\.\)]\s*/.test(str)) {
+            str = str.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
+        }
+        return str;
+    });
     
-    // Failsafe: If answer wasn't in options, force it in
+    let cleanAns = String(data.answer).trim();
+    while (/^[A-Da-d]\s*[\.\)]\s*/.test(cleanAns)) {
+        cleanAns = cleanAns.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
+    }
+
+    // 🟢 FORCE SHUFFLE
+    let optionsWithAnswer = cleanOpts.map(opt => ({ text: opt, isCorrect: opt === cleanAns }));
     if (!optionsWithAnswer.some(o => o.isCorrect)) {
         optionsWithAnswer[0].isCorrect = true;
         optionsWithAnswer[0].text = cleanAns;
     }
-    
-    // Shuffle the array so the correct answer is random
     optionsWithAnswer.sort(() => Math.random() - 0.5);
     
-    // Reassign the clean, shuffled data
     data.options = optionsWithAnswer.map(o => o.text);
     data.correctIndex = optionsWithAnswer.findIndex(o => o.isCorrect);
     data.answer = data.options[data.correctIndex];
