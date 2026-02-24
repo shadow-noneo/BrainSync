@@ -92,7 +92,6 @@ function App() {
   const [scores, setScores] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   
-  // CHAT STATE
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
@@ -170,12 +169,7 @@ function App() {
     });
     
     socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 AI Answered", { icon: '🤫' }); });
-    
-    // 🟢 FIXED SYNTAX ERROR HERE
-    socket.on('host_notification', ({ type, username }) => { 
-        toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); 
-    });
-    
+    socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
     socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
 
     socket.on('receive_message', (msg) => { setMessages(prev => [...prev, msg]); if(!chatOpen) toast("New Message 💬", { icon: '💬' }); });
@@ -281,6 +275,8 @@ function App() {
       setGameState('loading');
       setQuizHistory([]); 
       localStorage.removeItem("bs_history");
+      // 🟢 FIX 1: CLOSE SIDEBAR AUTOMATICALLY
+      setMenuOpen(false); 
       socket.emit('start_quiz', { 
           roomCode, 
           subject: expandedSubject === 'physics' ? "Engineering Physics-II" : "Applied Mathematics-II", 
@@ -434,7 +430,8 @@ function App() {
       
       {gameState !== 'menu' && !chatOpen && <button className="chat-btn" onClick={() => setChatOpen(!chatOpen)}>💬</button>}
       
-      {gameState !== 'menu' && (
+      {/* 🟢 FIX 3: HIDE PROFILE WHEN CHAT IS OPEN TO PREVENT OVERLAP */}
+      {gameState !== 'menu' && !chatOpen && (
          <>
             <button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>
             {profileOpen && (
@@ -509,18 +506,21 @@ function App() {
              <div className="chat-input-area">
                 {showCamOptions && (
                     <div className="cam-popup">
+                        {/* 🟢 FIX 5: EXPLICIT CAMERA AND FILE UPLOAD LABELS */}
                         <button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button>
-                        <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>🖼️ Gallery</button>
+                        <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button>
                     </div>
                 )}
                 <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
                 <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
                 
-                <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>＋</button>
+                {/* 🟢 FIX 5: CLEAR PAPERCLIP ICON */}
+                <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
                 
+                {/* 🟢 FIX 4: CHANGED PLACEHOLDER */}
                 <input 
                     className="chat-input-field" 
-                    placeholder="iMessage" 
+                    placeholder="Message..." 
                     value={chatInput} 
                     onChange={(e) => setChatInput(e.target.value)} 
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()} 

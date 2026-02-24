@@ -19,69 +19,55 @@ const groq = new Groq({ apiKey: "gsk_s3SpX0Z22VDqHuDV6C5tWGdyb3FYMLHAhix2xbZE63X
 
 const rooms = {}; 
 
-console.log("🚀 SERVER v24.0 - PYQ MATH FORMATTING FIX");
-
-function cleanJSON(text) {
-    try { return JSON.parse(text); } catch (e) {
-        const first = text.indexOf('{'), last = text.lastIndexOf('}');
-        if (first !== -1 && last !== -1) {
-            try { return JSON.parse(text.substring(first, last + 1)); } catch (e2) { return null; }
-        }
-        return null;
-    }
-}
+console.log("🚀 SERVER v26.0 - NATIVE JSON MODE ACTIVE");
 
 async function generateAIQuestion(subject, topicsArray) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
   const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
-  
   const randomSeed = Math.floor(Math.random() * 9999999);
   
   try {
-    // 🟢 NEW PROMPT: Forces AI to use $ LaTeX $ for beautiful math options
-    const prompt = `Act as a strict Engineering University Board Examiner. Generate ONE UNIQUE multiple-choice question (${marks} Marks) that perfectly mimics a standard university Previous Year Question (PYQ). 
-    Subject: ${subject}, Topic: ${topic}. Difficulty: Real Exam Level. 
+    const prompt = `Act as a strict Engineering University Board Examiner. Generate ONE UNIQUE multiple-choice question (${marks} Marks) for Subject: ${subject}, Topic: ${topic}. 
     CRITICAL INSTRUCTIONS: 
-    1. Make it unique (Seed: ${randomSeed}). 
-    2. STRICT JSON format. DO NOT use single letters like "A" or "C" for the answer. 
-    3. You MUST format ALL mathematical formulas, fractions, and variables using LaTeX wrapped in dollar signs ($).
-    Example format: {"question": "Evaluate $\\int x^2 dx$", "options": ["$\\frac{x^3}{3} + C$", "$2x + C$", "$\\frac{x^2}{2} + C$", "$x^3 + C$"], "answer": "$\\frac{x^3}{3} + C$", "explanation": "Using the power rule...", "marks": ${marks}}`;
+    1. Format all mathematical formulas, fractions, and variables using LaTeX wrapped in dollar signs ($).
+    2. The "answer" field MUST exactly match one of the string values in the "options" array.
+    
+    Return ONLY a JSON object matching this exact schema:
+    {"question": "Evaluate $\\int x^2 dx$", "options": ["$\\frac{x^3}{3} + C$", "$2x + C$", "$\\frac{x^2}{2} + C$", "$x^3 + C$"], "answer": "$\\frac{x^3}{3} + C$", "explanation": "Power rule.", "marks": ${marks}, "topic": "${topic}", "seed": ${randomSeed}}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: "llama-3.3-70b-versatile",
-        temperature: 0.9 
+        temperature: 0.7,
+        // 🔥 THE MAGIC BULLET: This forces the AI to output valid JSON only.
+        response_format: { type: "json_object" } 
     });
     
-    const data = cleanJSON(res.choices[0].message.content);
-    if (!data) throw new Error("Invalid JSON received from AI");
+    // Because of response_format, we don't need messy parsing logic anymore!
+    const data = JSON.parse(res.choices[0].message.content);
 
+    // Standardize data (Safety check)
     const cleanOpts = data.options.map(o => o.trim());
     const cleanAns = data.answer.trim();
-    let correctIndex = cleanOpts.findIndex(o => o === cleanAns);
+    let correctIndex = cleanOpts.indexOf(cleanAns);
     
-    if (correctIndex === -1 && cleanAns.length === 1) {
-        const letterMatch = cleanAns.toUpperCase().charCodeAt(0) - 65; 
-        if (letterMatch >= 0 && letterMatch < cleanOpts.length) {
-            correctIndex = letterMatch;
-            data.answer = cleanOpts[correctIndex]; 
-        }
+    if (correctIndex === -1) { 
+        // Fallback if AI makes a slight typo
+        correctIndex = 0; 
+        data.options[0] = data.answer; 
     }
 
-    if (correctIndex === -1) { correctIndex = 0; data.options[0] = data.answer; }
-
     data.correctIndex = correctIndex; 
-    data.marks = marks;
     data.topic = topic;
     return data;
 
   } catch (e) { 
-    console.error("❌ AI ERROR:", e.message);
+    console.error("AI FAIL:", e.message);
     return { 
-        question: `AI Error: ${e.message}. Please check Server Logs.`, 
-        options: ["Retry", "Check Key", "Restart", "Contact Host"], 
+        question: `System Error: Unable to generate question. Please click Retry.`, 
+        options: ["Retry", "Skip", "Reload", "Check Connection"], 
         answer: "Retry", 
-        explanation: "The server failed to connect to Groq AI.", 
+        explanation: `Technical details: ${e.message}`, 
         correctIndex: 0, 
         marks: 0, 
         topic: "System Error" 
