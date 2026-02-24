@@ -14,16 +14,27 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// Simple, un-hacky math renderer. Let KaTeX do its job.
 const MathText = ({ text }) => {
   if (!text) return null;
-  const parts = String(text).split('$');
+  let cleanText = String(text)
+     .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
+     .replace(/\\\[/g, '$').replace(/\\\]/g, '$')
+     .replace(/\$\$/g, '$');
+     
+  const parts = cleanText.split('$');
   return (
-    <span style={{ fontSize: '1.1em' }}>
-      {parts.map((p, i) => i % 2 === 0 ? 
-        <span key={i}>{p}</span> : 
-        <InlineMath key={i} math={p} renderError={(e) => <span style={{color: '#FFD60A'}}>{p}</span>} />
-      )}
+    <span style={{ fontSize: '1.1em', wordBreak: 'break-word' }}>
+      {parts.map((p, i) => {
+        if (!p) return null;
+        if (i % 2 === 1) {
+          return <InlineMath key={i} math={p} renderError={() => <span style={{color: '#FFD60A'}}>{p}</span>} />;
+        } else {
+          if (/[\\]|[\^]|[_]/.test(p)) {
+              return <InlineMath key={i} math={p} renderError={() => <span>{p}</span>} />;
+          }
+          return <span key={i}>{p}</span>;
+        }
+      })}
     </span>
   );
 };
@@ -89,10 +100,8 @@ function App() {
   const [questionLimit, setQuestionLimit] = useState(""); 
   const [expandedSubject, setExpandedSubject] = useState(null); 
   
-  const [quizHistory, setQuizHistory] = useState(() => {
-      const saved = localStorage.getItem("bs_history");
-      return saved ? JSON.parse(saved) : [];
-  });
+  // 🟢 PDF FIX: Start with empty array. No localStorage leaking between users/sessions!
+  const [quizHistory, setQuizHistory] = useState([]);
 
   const [isHistoryMode, setIsHistoryMode] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -167,9 +176,8 @@ function App() {
         setGameState('lobby'); 
         toast("Quiz Ended! 🏁"); 
         setScores(scores);
-        const safeHistory = history || [];
-        setQuizHistory(safeHistory);
-        localStorage.setItem("bs_history", JSON.stringify(safeHistory));
+        // 🟢 PDF FIX: Store history purely in React state
+        setQuizHistory(history || []);
     });
 
     const handleVisibilityChange = () => { if (document.hidden && gameState === 'playing' && role === 'member') socket.emit('tab_switch', { roomCode, username }); };
@@ -232,7 +240,14 @@ function App() {
   };
 
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
-  const joinRoom = () => { if (username && roomCode) socket.emit('join_room', { roomCode, username }); else toast.error("Enter Details"); };
+  
+  const joinRoom = () => { 
+      if (username && roomCode) {
+          setQuizHistory([]); // Clear past data to prevent PDF bug
+          socket.emit('join_room', { roomCode, username }); 
+      } else toast.error("Enter Details"); 
+  };
+  
   const handleAnswer = (opt, index) => { setSelectedOptionIndex(index); socket.emit('submit_answer', { roomCode, answerIndex: index, username }); };
   const navPrev = () => { socket.emit('nav_prev', { roomCode }); setHistoryIndex(prev => Math.max(0, prev - 1)); };
   
@@ -243,7 +258,8 @@ function App() {
           socket.emit('nav_next', { roomCode });
           setHistoryIndex(prev => prev + 1);
       } else {
-          socket.emit('start_quiz', { roomCode, subject: "Continued", forceNew: false });
+          // 🟢 DYNAMIC TOPIC FIX: Passes the current selectedTopics back to the server so mid-game changes apply immediately!
+          socket.emit('start_quiz', { roomCode, subject: "Continued", topics: selectedTopics, forceNew: false });
       }
   };
   
@@ -486,7 +502,6 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                {/* 🟢 FIX: Custom input now reacts to the Enter key properly */}
                 <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleStart()} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
              </div>
              <p>2. Select Topics from ☰ Menu.</p>
@@ -494,10 +509,9 @@ function App() {
                 {selectedTopics.length > 0 ? `🚀 Start Quiz (${selectedTopics.length} Topics)` : "⚠️ Select Topics First"}
              </button>
              
-             {/* 🟢 FIX: PDF Option reliably appears when game is over */}
              {quizHistory && quizHistory.length > 0 && (
                  <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:15, fontWeight:'bold'}}>
-                    📥 Download Last Quiz PDF
+                    📥 Download Current Session PDF
                  </button>
              )}
           </div>
@@ -508,7 +522,7 @@ function App() {
                 <h2>Waiting for Host... ☕</h2>
                 {quizHistory && quizHistory.length > 0 && (
                      <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:20, fontWeight:'bold'}}>
-                        📥 Download Last Quiz PDF
+                        📥 Download Current Session PDF
                      </button>
                 )}
             </div>
@@ -571,7 +585,6 @@ function App() {
           </div>
         )}
 
-        {/* 🟢 FIX: THE SCOREBOARD IS NOW PERMANENTLY VISIBLE ONCE YOU LEAVE THE LOGIN MENU */}
         {gameState !== 'menu' && Object.keys(scores).length > 0 && (
            <div className="card" style={{marginTop:20, background:'#1c1c1e', border:'1px solid rgba(255,255,255,0.1)'}}>
               <h3 style={{borderBottom:'1px solid rgba(255,255,255,0.1)', paddingBottom:15, marginTop: 0}}>🏆 Live Scores</h3>
