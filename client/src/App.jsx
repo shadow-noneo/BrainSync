@@ -14,11 +14,12 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
+// Robust Math Rendering (Ignores bad LaTeX instead of crashing red)
 const MathText = ({ text }) => {
   if (!text) return null;
   let cleanText = text.replace(/\\/g, '\\').replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$');
   const parts = cleanText.split('$');
-  return <span>{parts.map((p, i) => i % 2 === 0 ? <span key={i}>{p}</span> : <InlineMath key={i} math={p} />)}</span>;
+  return <span>{parts.map((p, i) => i % 2 === 0 ? <span key={i}>{p}</span> : <InlineMath key={i} math={p} renderError={(error) => <span style={{color:'orange'}}>{error.message}</span>} />)}</span>;
 };
 
 const SYLLABUS = {
@@ -61,22 +62,7 @@ const compressImage = (file, callback) => {
 
 const cleanLatex = (text) => {
     if (!text) return "";
-    return text
-        .replace(/\\frac{([^{}]+)}{([^{}]+)}/g, '($1)/($2)') 
-        .replace(/\\int/g, 'Integral ')
-        .replace(/\\sqrt{([^{}]+)}/g, 'Sqrt($1)')
-        .replace(/\\infty/g, 'Infinity')
-        .replace(/\\pm/g, '+/-')
-        .replace(/\\approx/g, '~')
-        .replace(/\\cdot/g, '*')
-        .replace(/\\times/g, 'x')
-        .replace(/\\le/g, '<=')
-        .replace(/\\ge/g, '>=')
-        .replace(/\^/g, '^') 
-        .replace(/_/g, '_')  
-        .replace(/[{}]/g, '') 
-        .replace(/\$/g, '')  
-        .replace(/\\/g, ''); 
+    return text.replace(/\\frac{([^{}]+)}{([^{}]+)}/g, '($1)/($2)').replace(/\\int/g, 'Integral ').replace(/\\sqrt{([^{}]+)}/g, 'Sqrt($1)').replace(/\\infty/g, 'Infinity').replace(/\\pm/g, '+/-').replace(/\\approx/g, '~').replace(/\\cdot/g, '*').replace(/\\times/g, 'x').replace(/\\le/g, '<=').replace(/\\ge/g, '>=').replace(/\^/g, '^').replace(/_/g, '_').replace(/[{}]/g, '').replace(/\$/g, '').replace(/\\/g, ''); 
 };
 
 function App() {
@@ -92,14 +78,12 @@ function App() {
   const [scores, setScores] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   
+  // CHAT STATE
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
-  
   const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
   
   const [selectedTopics, setSelectedTopics] = useState([]); 
   const [questionLimit, setQuestionLimit] = useState(""); 
@@ -119,6 +103,8 @@ function App() {
   const [isListeningAI, setIsListeningAI] = useState(false);
   const [aiSpeaking, setAiSpeaking] = useState(false);
   
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const audioContextRef = useRef(null);
   const roomInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -172,7 +158,10 @@ function App() {
     socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
     socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
 
-    socket.on('receive_message', (msg) => { setMessages(prev => [...prev, msg]); if(!chatOpen) toast("New Message 💬", { icon: '💬' }); });
+    socket.on('receive_message', (msg) => { 
+        setMessages(prev => [...prev, msg]); 
+        if(!chatOpen) toast("New Message 💬", { icon: '💬' }); 
+    });
     
     socket.on('game_over', ({ scores, history }) => { 
         setGameState('lobby'); 
@@ -188,7 +177,12 @@ function App() {
     return () => { socket.off(); document.removeEventListener("visibilitychange", handleVisibilityChange); };
   }, [gameState, role, roomCode, username, chatOpen, canMoveOn]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, chatOpen]);
+  // Auto-scroll chat to bottom
+  useEffect(() => { 
+      if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); 
+      }
+  }, [messages, chatOpen]);
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
   
@@ -275,7 +269,6 @@ function App() {
       setGameState('loading');
       setQuizHistory([]); 
       localStorage.removeItem("bs_history");
-      // 🟢 FIX 1: CLOSE SIDEBAR AUTOMATICALLY
       setMenuOpen(false); 
       socket.emit('start_quiz', { 
           roomCode, 
@@ -289,12 +282,13 @@ function App() {
   const requestStuck = () => socket.emit('student_signal', { roomCode, type: 'stuck', username });
   const requestChange = () => socket.emit('student_signal', { roomCode, type: 'change', username });
 
+  // 🟢 FIXED SEND MESSAGE FUNCTION
   const sendMessage = () => {
-      if(chatInput.trim()) {
+      if(chatInput.trim() !== "") {
           const msg = { username, text: chatInput, image: null, audio: null, time: new Date().toLocaleTimeString() };
           setMessages(prev => [...prev, msg]); 
           socket.emit('send_message', { roomCode, ...msg });
-          setChatInput("");
+          setChatInput(""); // Clear the input box
       }
   };
 
@@ -394,6 +388,7 @@ function App() {
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1c1c1e; padding: 20px; z-index: 10001; border-right: 1px solid #333; overflow-y: auto; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         
+        /* CHAT SIDEBAR CSS */
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-header h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
@@ -414,7 +409,7 @@ function App() {
         .chat-input-field { flex: 1; padding: 10px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: #3a3a3c; color: white; font-size: 15px; outline: none; transition: 0.2s; }
         .chat-input-field:focus { border-color: rgba(10, 132, 255, 0.5); background: #444446; }
         
-        .send-btn { background: #0A84FF; border: none; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; }
+        .send-btn { background: #0A84FF; border: none; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; cursor: pointer;}
         .mic-btn { background: transparent; border: none; color: #0A84FF; font-size: 22px; cursor: pointer; padding: 5px; transition: 0.2s; -webkit-user-select: none; user-select: none; }
         .mic-btn.recording { color: #FF3B30; animation: pulse 1s infinite; transform: scale(1.2); }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -430,7 +425,6 @@ function App() {
       
       {gameState !== 'menu' && !chatOpen && <button className="chat-btn" onClick={() => setChatOpen(!chatOpen)}>💬</button>}
       
-      {/* 🟢 FIX 3: HIDE PROFILE WHEN CHAT IS OPEN TO PREVENT OVERLAP */}
       {gameState !== 'menu' && !chatOpen && (
          <>
             <button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>
@@ -506,7 +500,6 @@ function App() {
              <div className="chat-input-area">
                 {showCamOptions && (
                     <div className="cam-popup">
-                        {/* 🟢 FIX 5: EXPLICIT CAMERA AND FILE UPLOAD LABELS */}
                         <button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button>
                         <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button>
                     </div>
@@ -514,10 +507,8 @@ function App() {
                 <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
                 <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
                 
-                {/* 🟢 FIX 5: CLEAR PAPERCLIP ICON */}
                 <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
                 
-                {/* 🟢 FIX 4: CHANGED PLACEHOLDER */}
                 <input 
                     className="chat-input-field" 
                     placeholder="Message..." 
@@ -526,7 +517,7 @@ function App() {
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()} 
                 />
                 
-                {chatInput.trim() ? (
+                {chatInput.trim() !== "" ? (
                     <button className="send-btn" onClick={sendMessage}>↑</button>
                 ) : (
                     <button 
@@ -596,23 +587,12 @@ function App() {
              >
                 {selectedTopics.length > 0 ? `🚀 Start Quiz (${selectedTopics.length} Topics)` : "⚠️ Select Topics First"}
              </button>
-             
-             {quizHistory && quizHistory.length > 0 && (
-                 <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:15, fontWeight:'bold'}}>
-                    📥 Download Last Quiz PDF
-                 </button>
-             )}
           </div>
         )}
 
         {gameState === 'lobby' && role === 'member' && (
             <div className="card" style={{textAlign:'center'}}>
                 <h2>Waiting for Host... ☕</h2>
-                {quizHistory && quizHistory.length > 0 && (
-                     <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:20, fontWeight:'bold'}}>
-                        📥 Download Last Quiz PDF
-                     </button>
-                )}
             </div>
         )}
 
@@ -622,6 +602,7 @@ function App() {
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
                 
+                {/* 🟢 THE MUTED BUTTON HAS BEEN COMPLETELY AND PERMANENTLY DELETED */}
                 <div style={{display:'flex', gap:5}}>
                   <button onClick={toggleAI} style={{background: isListeningAI ? '#FF3B30' : (aiSpeaking ? '#FFD60A' : '#2c2c2e'), color: aiSpeaking ? 'black' : 'white', border:'1px solid #444', borderRadius:'20px', padding:'8px 14px', fontWeight: 500}}>
                     {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask AI")}
