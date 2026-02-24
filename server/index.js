@@ -16,10 +16,9 @@ const io = new Server(server, {
 });
 
 const groq = new Groq({ apiKey: "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" });
-
 const rooms = {}; 
 
-console.log("🚀 SERVER v26.0 - NATIVE JSON MODE ACTIVE");
+console.log("🚀 SERVER v27.0 - MATH ESCAPE FIX & CHAT SYNC");
 
 async function generateAIQuestion(subject, topicsArray) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
@@ -27,32 +26,39 @@ async function generateAIQuestion(subject, topicsArray) {
   const randomSeed = Math.floor(Math.random() * 9999999);
   
   try {
+    // 🟢 THE FIX: We explicitly warn the AI about the JSON \f and \r bug.
     const prompt = `Act as a strict Engineering University Board Examiner. Generate ONE UNIQUE multiple-choice question (${marks} Marks) for Subject: ${subject}, Topic: ${topic}. 
-    CRITICAL INSTRUCTIONS: 
-    1. Format all mathematical formulas, fractions, and variables using LaTeX wrapped in dollar signs ($).
-    2. The "answer" field MUST exactly match one of the string values in the "options" array.
+    
+    CRITICAL JSON & MATH RULES: 
+    1. You MUST use DOUBLE BACKSLASHES for all LaTeX to prevent JSON escaping errors! 
+    2. Example: Write \\\\frac instead of \\frac. Write \\\\right instead of \\right. Write \\\\eta instead of \\eta. Write \\\\int instead of \\int.
+    3. Format all math inside dollar signs like $\\\\frac{x}{2}$.
+    4. The "answer" field MUST exactly match one of the string values in the "options" array.
     
     Return ONLY a JSON object matching this exact schema:
-    {"question": "Evaluate $\\int x^2 dx$", "options": ["$\\frac{x^3}{3} + C$", "$2x + C$", "$\\frac{x^2}{2} + C$", "$x^3 + C$"], "answer": "$\\frac{x^3}{3} + C$", "explanation": "Power rule.", "marks": ${marks}, "topic": "${topic}", "seed": ${randomSeed}}`;
+    {"question": "Evaluate $\\\\int x^2 dx$", "options": ["$\\\\frac{x^3}{3} + C$", "$2x + C$", "$\\\\frac{x^2}{2} + C$", "$x^3 + C$"], "answer": "$\\\\frac{x^3}{3} + C$", "explanation": "Power rule.", "marks": ${marks}, "topic": "${topic}", "seed": ${randomSeed}}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: "llama-3.3-70b-versatile",
         temperature: 0.7,
-        // 🔥 THE MAGIC BULLET: This forces the AI to output valid JSON only.
         response_format: { type: "json_object" } 
     });
     
-    // Because of response_format, we don't need messy parsing logic anymore!
-    const data = JSON.parse(res.choices[0].message.content);
+    // Clean up any rogue unescaped characters just in case the AI messes up
+    let safeString = res.choices[0].message.content
+        .replace(/\f/g, '\\f')
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n')
+        .replace(/\t/g, '\\t');
 
-    // Standardize data (Safety check)
+    const data = JSON.parse(safeString);
+
     const cleanOpts = data.options.map(o => o.trim());
     const cleanAns = data.answer.trim();
     let correctIndex = cleanOpts.indexOf(cleanAns);
     
     if (correctIndex === -1) { 
-        // Fallback if AI makes a slight typo
         correctIndex = 0; 
         data.options[0] = data.answer; 
     }
@@ -105,7 +111,11 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('update_scores', rooms[roomCode].scores);
   });
 
-  socket.on('send_message', (data) => socket.to(data.roomCode).volatile.emit('receive_message', { ...data, time: new Date().toLocaleTimeString() }));
+  socket.on('send_message', (data) => {
+      // Broadcast the message securely to everyone else in the room
+      socket.to(data.roomCode).volatile.emit('receive_message', { ...data, time: new Date().toLocaleTimeString() });
+  });
+  
   socket.on('send_audio_chunk', (data) => socket.to(data.roomCode).emit('receive_audio_chunk', data));
 
   socket.on('start_quiz', async ({ roomCode, subject, topics, limit, forceNew }) => {
