@@ -14,16 +14,15 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🔥 LIGHTNING FAST MATH RENDERER
-// Automatically renders anything between $ signs as perfect math.
+// Simple, un-hacky math renderer. Let KaTeX do its job.
 const MathText = ({ text }) => {
   if (!text) return null;
   const parts = String(text).split('$');
   return (
-    <span style={{ fontSize: '1.05em' }}>
+    <span style={{ fontSize: '1.1em' }}>
       {parts.map((p, i) => i % 2 === 0 ? 
         <span key={i}>{p}</span> : 
-        <InlineMath key={i} math={p} renderError={() => <span style={{color: '#FFD60A'}}>{p}</span>} />
+        <InlineMath key={i} math={p} renderError={(e) => <span style={{color: '#FFD60A'}}>{p}</span>} />
       )}
     </span>
   );
@@ -298,7 +297,6 @@ function App() {
 
       quizHistory.forEach((q, i) => {
           if(y > 270) { doc.addPage(); y = 20; }
-          // Remove $ signs for PDF export as jsPDF doesn't render LaTeX
           let plainQ = q.question.replace(/\$/g, '');
           doc.text(`Q${i+1}. ${plainQ}`, 20, y); y += 10;
           q.options.forEach((opt, idx) => {
@@ -327,7 +325,6 @@ function App() {
         .primary-btn { width: 100%; padding: 14px; background: #0A84FF; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; margin-top: 10px; }
         .primary-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
         
-        /* 🔥 UPGRADED OPTION BUTTONS TO FIT LONG MATH EQUATIONS */
         .option-btn { width: 100%; padding: 15px 12px; background: #2c2c2e; color: #eee; border: 1px solid #444; border-radius: 12px; text-align: left; display: flex; gap: 15px; align-items: center; transition: 0.2s; min-height: 70px; }
         .option-badge { background: #444; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; flex-shrink: 0; }
         .selected { background: #0A84FF; border-color: #0A84FF; color: white; }
@@ -464,12 +461,14 @@ function App() {
 
       <div style={{display:'flex', flexDirection:'column', alignItems:'center', width:'100%'}}>
         <h1 className="logo">🧠 BrainSync</h1>
+        
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
              <h2>Generating Professional Question... ✨</h2>
            </div>
         )}
+        
         {gameState === 'menu' && (
           <div className="card">
             <h2>Student Login</h2>
@@ -487,17 +486,32 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
+                {/* 🟢 FIX: Custom input now reacts to the Enter key properly */}
+                <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleStart()} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
              </div>
              <p>2. Select Topics from ☰ Menu.</p>
              <button onClick={handleStart} disabled={selectedTopics.length === 0} className="primary-btn" style={{background: selectedTopics.length > 0 ? '#34C759' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>
                 {selectedTopics.length > 0 ? `🚀 Start Quiz (${selectedTopics.length} Topics)` : "⚠️ Select Topics First"}
              </button>
+             
+             {/* 🟢 FIX: PDF Option reliably appears when game is over */}
+             {quizHistory && quizHistory.length > 0 && (
+                 <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:15, fontWeight:'bold'}}>
+                    📥 Download Last Quiz PDF
+                 </button>
+             )}
           </div>
         )}
 
         {gameState === 'lobby' && role === 'member' && (
-            <div className="card" style={{textAlign:'center'}}><h2>Waiting for Host... ☕</h2></div>
+            <div className="card" style={{textAlign:'center'}}>
+                <h2>Waiting for Host... ☕</h2>
+                {quizHistory && quizHistory.length > 0 && (
+                     <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:20, fontWeight:'bold'}}>
+                        📥 Download Last Quiz PDF
+                     </button>
+                )}
+            </div>
         )}
 
         {(gameState === 'playing' || gameState === 'result') && question && (
@@ -514,7 +528,6 @@ function App() {
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             
-            {/* 🔥 INCREASED FONT SIZE FOR MAIN QUESTION */}
             <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question.question} /></h3>
 
             {gameState === 'playing' && (
@@ -556,6 +569,19 @@ function App() {
               </div>
             )}
           </div>
+        )}
+
+        {/* 🟢 FIX: THE SCOREBOARD IS NOW PERMANENTLY VISIBLE ONCE YOU LEAVE THE LOGIN MENU */}
+        {gameState !== 'menu' && Object.keys(scores).length > 0 && (
+           <div className="card" style={{marginTop:20, background:'#1c1c1e', border:'1px solid rgba(255,255,255,0.1)'}}>
+              <h3 style={{borderBottom:'1px solid rgba(255,255,255,0.1)', paddingBottom:15, marginTop: 0}}>🏆 Live Scores</h3>
+              {Object.entries(scores).sort((a,b)=>b[1]-a[1]).map(([u, s], i) => (
+                 <div key={u} style={{display:'flex', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', color: i===0?'#FFD60A':'white', fontSize: 16}}>
+                    <span>{i+1}. {u}</span>
+                    <span style={{fontWeight:'bold'}}>{Number(s || 0)} Marks</span>
+                 </div>
+              ))}
+           </div>
         )}
       </div>
     </div>
