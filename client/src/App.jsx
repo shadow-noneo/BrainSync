@@ -100,7 +100,6 @@ function App() {
   const [questionLimit, setQuestionLimit] = useState(""); 
   const [expandedSubject, setExpandedSubject] = useState(null); 
   
-  // 🟢 PDF FIX: Start with empty array. No localStorage leaking between users/sessions!
   const [quizHistory, setQuizHistory] = useState([]);
 
   const [isHistoryMode, setIsHistoryMode] = useState(false);
@@ -176,7 +175,6 @@ function App() {
         setGameState('lobby'); 
         toast("Quiz Ended! 🏁"); 
         setScores(scores);
-        // 🟢 PDF FIX: Store history purely in React state
         setQuizHistory(history || []);
     });
 
@@ -243,7 +241,7 @@ function App() {
   
   const joinRoom = () => { 
       if (username && roomCode) {
-          setQuizHistory([]); // Clear past data to prevent PDF bug
+          setQuizHistory([]); 
           socket.emit('join_room', { roomCode, username }); 
       } else toast.error("Enter Details"); 
   };
@@ -258,7 +256,6 @@ function App() {
           socket.emit('nav_next', { roomCode });
           setHistoryIndex(prev => prev + 1);
       } else {
-          // 🟢 DYNAMIC TOPIC FIX: Passes the current selectedTopics back to the server so mid-game changes apply immediately!
           socket.emit('start_quiz', { roomCode, subject: "Continued", topics: selectedTopics, forceNew: false });
       }
   };
@@ -379,7 +376,15 @@ function App() {
         .topic-row input { margin-right: 10px; width: 18px; height: 18px; accent-color: #0A84FF; }
         @keyframes galaxy { 100% { transform: rotate(360deg); } }
         .galaxy-ring { width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0A84FF, #FF3B30, #FFD60A, #34C759, #0A84FF); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0); animation: galaxy 1s linear infinite; margin: 20px auto; }
-        @media (max-width: 600px) { .chat-sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } }
+        
+        /* 🟢 MOBILE ALIGNMENT FIXES */
+        @media (max-width: 600px) { 
+            .chat-sidebar { width: 100%; } 
+            .grid { grid-template-columns: 1fr; } 
+            .menu-btn { top: 15px; left: 15px; font-size: 14px; padding: 6px 12px; }
+            .profile-btn { top: 15px; right: 15px; width: 35px; height: 35px; padding: 6px; }
+            .chat-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 22px; }
+        }
       `}</style>
 
       {gameState !== 'menu' && !menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
@@ -433,6 +438,10 @@ function App() {
                  </div>
              )}
           </div>
+          {/* 🟢 NEW DONE BUTTON FOR MOBILE */}
+          <button onClick={() => setMenuOpen(false)} style={{width: '100%', padding: '12px', background: '#34C759', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '20px'}}>
+             ✅ Done
+          </button>
         </div>
       )}
 
@@ -481,7 +490,7 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Professional Question... ✨</h2>
+             <h2>Generating Exam Question... ✨</h2>
            </div>
         )}
         
@@ -502,7 +511,8 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleStart()} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
+                {/* 🟢 CUSTOM INPUT OPENS MENU ON ENTER */}
+                <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setMenuOpen(true)} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
              </div>
              <p>2. Select Topics from ☰ Menu.</p>
              <button onClick={handleStart} disabled={selectedTopics.length === 0} className="primary-btn" style={{background: selectedTopics.length > 0 ? '#34C759' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>
@@ -570,6 +580,12 @@ function App() {
                    <div style={{marginTop:8, fontSize: '1.2em'}}><MathText text={roundResult.correctAnswer} /></div>
                 </div>
                 <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', marginTop:15, lineHeight: 1.6}}><MathText text={roundResult.explanation} /></div>
+                {/* 🟢 EXAM YEAR TAG */}
+                {question.exam_year && (
+                    <div style={{marginTop:15, textAlign:'center', fontSize: '0.9em', color: '#FFD60A', border: '1px solid #FFD60A', display: 'inline-block', padding: '4px 10px', borderRadius: '15px'}}>
+                        📚 Exam: {question.exam_year}
+                    </div>
+                )}
               </div>
             )}
 

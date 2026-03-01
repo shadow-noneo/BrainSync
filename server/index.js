@@ -18,27 +18,26 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: "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" });
 const rooms = {}; 
 
-console.log("🚀 SERVER v31.0 - ANTI-LAZY AI & SHUFFLE");
+console.log("🚀 SERVER v33.0 - NEP 2020 PYQ MODES");
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
   const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
   
   try {
+    // 🟢 UPDATED PROMPT: Forces NEP 2020 Era Questions + Year Tag
     const prompt = `Act as an elite Engineering Professor. Create ONE multiple-choice question (${marks} Marks).
     Subject: ${subject}. Topic: ${topic}.
     
     ABSOLUTE RULES:
     1. Output ONLY valid JSON.
-    2. MATH FORMATTING: You MUST use LaTeX for ALL equations, variables, and fractions.
-    3. You MUST double-escape LaTeX backslashes (e.g., \\\\frac, \\\\sin, \\\\cos).
-    4. CRITICAL: Wrap the ENTIRE equation in ONE pair of dollar signs. Do not leave math outside the dollar signs!
-       - CORRECT: "$\\\\frac{1}{13} e^{-2x} \\\\sin(3x)$"
-       - WRONG: "$y$ = \\\\frac{1}{13} e^{-2x}" 
-    5. DO NOT prefix options with A, B, C, D. Just the raw text/math.
+    2. MATH FORMATTING: Use LaTeX with double-escaped backslashes (e.g. \\\\frac, \\\\int).
+    3. QUESTION SOURCE: The question must be derived from recent NEP 2020 syllabus papers (Years: 2021, 2022, 2023, 2024, 2025).
+    4. You MUST include an "exam_year" field with a random realistic date (e.g. "Dec 2023", "May 2022").
+    5. CRITICAL: Wrap the ENTIRE equation in ONE pair of dollar signs ($...$).
 
     JSON Schema:
-    {"question": "What is the derivative of $e^{2x}$?", "options": ["$2e^{2x}$", "$e^{2x}$", "$\\\\frac{1}{2}e^{2x}$", "$4e^{2x}$"], "answer": "$2e^{2x}$", "explanation": "Using the chain rule...", "marks": ${marks}, "topic": "${topic}"}`;
+    {"question": "What is the derivative of $e^{2x}$?", "options": ["$2e^{2x}$", "$e^{2x}$", "$\\\\frac{1}{2}e^{2x}$", "$4e^{2x}$"], "answer": "$2e^{2x}$", "explanation": "Using the chain rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "May 2024"}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
@@ -49,21 +48,17 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
     
     let data = JSON.parse(res.choices[0].message.content);
 
-    // 🟢 AGGRESSIVE ANTI-LAZY STRIPPER: Destroy "A.", "a)", "C. ", etc. from the AI's output
+    // Anti-Lazy Stripper
     const cleanOpts = data.options.map(o => {
         let str = String(o).trim();
-        while (/^[A-Da-d]\s*[\.\)]\s*/.test(str)) {
-            str = str.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
-        }
+        while (/^[A-Da-d]\s*[\.\)]\s*/.test(str)) str = str.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
         return str;
     });
     
     let cleanAns = String(data.answer).trim();
-    while (/^[A-Da-d]\s*[\.\)]\s*/.test(cleanAns)) {
-        cleanAns = cleanAns.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
-    }
+    while (/^[A-Da-d]\s*[\.\)]\s*/.test(cleanAns)) cleanAns = cleanAns.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
 
-    // 🟢 FORCE SHUFFLE
+    // Force Shuffle
     let optionsWithAnswer = cleanOpts.map(opt => ({ text: opt, isCorrect: opt === cleanAns }));
     if (!optionsWithAnswer.some(o => o.isCorrect)) {
         optionsWithAnswer[0].isCorrect = true;
@@ -90,7 +85,7 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
 async function solveDoubt(q, d) {
   try {
     const res = await groq.chat.completions.create({ 
-        messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain simply in 2 sentences. Use double escaped LaTeX (e.g., $\\\\frac{1}{2}$) for math.` }], 
+        messages: [{ role: "user", content: `Context: ${q}. Doubt: ${d}. Explain simply in 2 sentences.` }], 
         model: "llama-3.3-70b-versatile" 
     });
     return res.choices[0].message.content;
@@ -124,11 +119,12 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (!room) return;
     
+    if (topics && topics.length > 0) room.selectedTopics = topics;
+    
     if (forceNew) {
         room.questionCount = 0; room.history = []; room.historyIndex = -1;
         room.currentQuestion = null; room.canMoveOn = false; room.subject = subject; 
         if (limit !== undefined) room.questionLimit = parseInt(limit);
-        if (topics) room.selectedTopics = topics;
     }
     
     if (!forceNew && room.questionLimit !== -1 && room.questionCount >= room.questionLimit) {
