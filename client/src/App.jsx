@@ -14,6 +14,7 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
+// 🟢 ROBUST MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
   let cleanText = String(text)
@@ -94,12 +95,15 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  
+  // 🟢 RECORDER STATE
+  const [recState, setRecState] = useState('idle'); 
+  const [recTime, setRecTime] = useState(0);
+  const [recStartTime, setRecStartTime] = useState(0); // To track tap vs hold
   
   const [selectedTopics, setSelectedTopics] = useState([]); 
   const [questionLimit, setQuestionLimit] = useState(""); 
   const [expandedSubject, setExpandedSubject] = useState(null); 
-  
   const [quizHistory, setQuizHistory] = useState([]);
 
   const [isHistoryMode, setIsHistoryMode] = useState(false);
@@ -118,6 +122,7 @@ function App() {
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const recTimerRef = useRef(null);
 
   const unlockAudio = () => {
       if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -162,7 +167,7 @@ function App() {
         if(data.isReview) setIsHistoryMode(true); 
     });
     
-    socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 Tutor Answered", { icon: '🎓' }); });
+    socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 AI Answered", { icon: '🤫' }); });
     socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
     socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
 
@@ -208,37 +213,88 @@ function App() {
     r.start();
   };
 
+  // 🟢 TAP TO TALK / HOLD TO RECORD LOGIC
   const startRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorderRef.current = new MediaRecorder(stream);
         audioChunksRef.current = [];
-        mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+        
+        mediaRecorderRef.current.ondataavailable = (e) => { 
+            if (e.data.size > 0) audioChunksRef.current.push(e.data); 
+        };
+        
         mediaRecorderRef.current.onstop = () => {
-            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = () => {
-                const msg = { username, text: "", image: null, audio: reader.result, time: new Date().toLocaleTimeString() };
-                setMessages(prev => [...prev, msg]);
-                socket.emit('send_message', { roomCode, ...msg });
-            };
             stream.getTracks().forEach(track => track.stop());
         };
+
         mediaRecorderRef.current.start();
-        setIsRecording(true);
-    } catch (err) { toast.error("Microphone access denied!"); }
+        setRecState('holding');
+        setRecTime(0);
+        setRecStartTime(Date.now()); // Record start time
+        
+        if (recTimerRef.current) clearInterval(recTimerRef.current);
+        recTimerRef.current = setInterval(() => setRecTime(t => t + 1), 1000);
+        
+    } catch (err) { 
+        toast.error("Microphone access denied!"); 
+    }
   };
 
-  const stopRecording = () => {
-      if (mediaRecorderRef.current && isRecording) {
+  const stopRecordingAndSend = () => {
+      // 🟢 IF TAP (< 500ms), LOCK INSTEAD OF SEND
+      if (Date.now() - recStartTime < 500 && recState === 'holding') {
+          setRecState('locked');
+          return;
+      }
+
+      if (mediaRecorderRef.current && (recState === 'holding' || recState === 'locked')) {
+          mediaRecorderRef.current.onstop = () => {
+              const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+              const reader = new FileReader();
+              reader.readAsDataURL(audioBlob);
+              reader.onloadend = () => {
+                  const msg = { username, text: "", image: null, audio: reader.result, time: new Date().toLocaleTimeString() };
+                  setMessages(prev => [...prev, msg]);
+                  socket.emit('send_message', { roomCode, ...msg });
+              };
+          };
           mediaRecorderRef.current.stop();
-          setIsRecording(false);
+      }
+      resetRecUI();
+  };
+
+  const cancelRecording = () => {
+      if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
+      resetRecUI();
+      toast("Recording Cancelled 🗑️");
+  };
+
+  const lockRecording = () => {
+      setRecState('locked');
+  };
+
+  const resetRecUI = () => {
+      setRecState('idle');
+      setRecTime(0);
+      if (recTimerRef.current) clearInterval(recTimerRef.current);
+  };
+
+  const handleTouchMove = (e) => {
+      if (recState !== 'holding') return;
+      const touch = e.touches[0];
+      
+      // Slide up to lock
+      if (touch.clientY < window.innerHeight - 150) {
+          lockRecording();
+      }
+      // Slide left to cancel
+      if (touch.clientX < window.innerWidth / 2) {
+          cancelRecording();
       }
   };
 
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
-  
   const joinRoom = () => { 
       if (username && roomCode) {
           setQuizHistory([]); 
@@ -322,6 +378,8 @@ function App() {
       doc.save("BrainSync_Quiz.pdf"); toast.success("PDF Downloaded! 📥");
   };
 
+  const formatRecTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
+
   return (
     <div className="app-container">
       <Toaster position="top-center" />
@@ -337,7 +395,6 @@ function App() {
         .input { width: 100%; padding: 14px; margin: 10px 0; background: #333; border: 1px solid #444; color: white; border-radius: 12px; font-size: 16px; box-sizing: border-box; }
         .primary-btn { width: 100%; padding: 14px; background: #0A84FF; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; margin-top: 10px; }
         .primary-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
-        
         .option-btn { width: 100%; padding: 15px 12px; background: #2c2c2e; color: #eee; border: 1px solid #444; border-radius: 12px; text-align: left; display: flex; gap: 15px; align-items: center; transition: 0.2s; min-height: 70px; }
         .option-badge { background: #444; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; flex-shrink: 0; }
         .selected { background: #0A84FF; border-color: #0A84FF; color: white; }
@@ -350,45 +407,54 @@ function App() {
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
+        
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1c1c1e; padding: 20px; z-index: 10001; border-right: 1px solid #333; overflow-y: auto; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        /* 🟢 WHATSAPP STYLE BUBBLES */
-        .msg-bubble { padding: 8px 12px; border-radius: 12px; max-width: 80%; word-break: break-word; font-size: 15px; margin-bottom: 5px; position: relative; }
-        .msg-bubble.mine { background: #075E54; align-self: flex-end; border-top-right-radius: 0; }
-        .msg-bubble:not(.mine) { background: #3a3a3c; align-self: flex-start; border-top-left-radius: 0; }
-        
-        /* 🟢 SENDER NAME STYLE */
-        .msg-name { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
-        .msg-bubble:not(.mine) .msg-name { color: #34C759; } 
-        .msg-bubble.mine .msg-name { display: none; } /* Hide own name like WhatsApp */
-
-        .msg-info { font-size: 10px; color: rgba(255,255,255,0.6); text-align: right; margin-top: 4px; }
-        
+        .msg-bubble { background: #3a3a3c; padding: 10px 16px; border-radius: 18px; max-width: 80%; word-break: break-word; font-size: 15px; border-bottom-left-radius: 4px; }
+        .msg-bubble.mine { background: #0A84FF; align-self: flex-end; border-bottom-left-radius: 18px; border-bottom-right-radius: 4px; }
+        .msg-user { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
+        .msg-bubble.mine .msg-user { text-align: right; }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 5px; cursor: pointer; }
         .msg-audio { width: 100%; max-width: 220px; height: 35px; margin-top: 5px; border-radius: 20px; outline: none; }
         
-        .chat-input-area { padding: 15px; display: flex; gap: 10px; align-items: center; }
+        .chat-input-area { padding: 10px 15px; display: flex; gap: 10px; align-items: center; min-height: 60px; position: relative; }
+        
+        /* 🟢 WHATSAPP LOCKED MODE */
+        .rec-locked-container { display: flex; align-items: center; width: 100%; justify-content: space-between; padding: 0 10px; position: relative; height: 100%; }
+        .rec-timer-locked { position: absolute; top: -30px; left: 15px; font-size: 14px; color: white; font-family: monospace; font-weight: bold; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
+        
+        .slide-to-cancel { position: absolute; left: 50px; color: #888; font-size: 14px; animation: slideHint 1.5s infinite; pointer-events: none; }
+        .mic-btn-hold { background: #25D366; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: 0.2s; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); transform: scale(1.2); }
+        .mic-btn { background: #25D366; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.2s; }
+        .lock-hint { position: absolute; bottom: 80px; right: 20px; background: #333; padding: 8px; border-radius: 20px; color: white; animation: slideUp 0.5s ease-out; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes slideHint { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-20px); opacity: 0; } }
+        @keyframes slideUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
         .cam-popup { position: absolute; bottom: 80px; left: 15px; background: rgba(44, 44, 46, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 5px; z-index: 10002; }
         .cam-popup button { background: transparent; color: white; border: none; padding: 10px 15px; text-align: left; cursor: pointer; border-radius: 8px; }
         .cam-popup button:hover { background: rgba(255,255,255,0.1); }
         .icon-btn { background: none; border: none; color: #0A84FF; font-size: 24px; cursor: pointer; padding: 5px; display: flex; align-items: center; justify-content: center; }
         .chat-input-field { flex: 1; padding: 10px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: #3a3a3c; color: white; font-size: 15px; outline: none; transition: 0.2s; }
-        .send-btn { background: #0A84FF; border: none; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;}
-        .mic-btn { background: transparent; border: none; color: #0A84FF; font-size: 22px; cursor: pointer; padding: 5px; transition: 0.2s; user-select: none; }
+        .send-btn { background: #0A84FF; border: none; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer;}
         
-        /* 🟢 PULSING RED MIC WHEN RECORDING */
-        .mic-btn.recording { color: #FF3B30; animation: pulse 1s infinite; transform: scale(1.3); }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
         .topic-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #333; cursor: pointer; }
         .topic-row input { margin-right: 10px; width: 18px; height: 18px; accent-color: #0A84FF; }
         @keyframes galaxy { 100% { transform: rotate(360deg); } }
         .galaxy-ring { width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0A84FF, #FF3B30, #FFD60A, #34C759, #0A84FF); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0); animation: galaxy 1s linear infinite; margin: 20px auto; }
-        @media (max-width: 600px) { .chat-sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } }
+        
+        @media (max-width: 600px) { 
+            .chat-sidebar { width: 100%; } 
+            .grid { grid-template-columns: 1fr; } 
+            .menu-btn { top: 15px; left: 15px; font-size: 14px; padding: 6px 12px; }
+            .profile-btn { top: 15px; right: 15px; width: 35px; height: 35px; padding: 6px; }
+            .chat-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 22px; }
+        }
       `}</style>
 
       {gameState !== 'menu' && !menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
@@ -457,33 +523,63 @@ function App() {
              <div className="chat-messages">
                 {messages.map((m, i) => (
                    <div key={i} className={`msg-bubble ${m.username === username ? 'mine' : ''}`}>
-                      {/* 🟢 NAME DISPLAY ONLY FOR OTHERS */}
-                      <div className="msg-name">{m.username}</div>
+                      <div className="msg-user">{m.username} • {m.time}</div>
                       {m.text && <div>{m.text}</div>}
                       {m.image && <img src={m.image} className="msg-img" onClick={() => window.open(m.image)} />}
                       {m.audio && <audio src={m.audio} controls className="msg-audio" />}
-                      <div className="msg-info">{m.time}</div>
                    </div>
                 ))}
                 <div ref={messagesEndRef} />
              </div>
-             <div className="chat-input-area">
-                {showCamOptions && (
-                    <div className="cam-popup">
-                        <button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button>
-                        <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button>
+             
+             <div className="chat-input-area" onTouchMove={handleTouchMove}>
+                {recState === 'locked' ? (
+                    // 🟢 LOCKED MODE UI: Exact match to your screenshot
+                    <div className="rec-locked-container">
+                        <div className="rec-timer-locked">{formatRecTime(recTime)}</div>
+                        <button onClick={cancelRecording} style={{background:'none', border:'none', fontSize:'24px'}}>🗑️</button>
+                        <div style={{color:'#FF3B30', fontSize:'24px', fontWeight:'bold', letterSpacing:'-2px'}}>||</div>
+                        <button onClick={stopRecordingAndSend} className="send-btn" style={{background:'#25D366', borderRadius:'50%', width:'45px', height:'45px'}}>➤</button>
                     </div>
-                )}
-                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
-                <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
-                <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
-                <input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
-                {chatInput.trim() !== "" ? (
-                    <button className="send-btn" onClick={sendMessage}>↑</button>
                 ) : (
-                    <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={(e) => { e.preventDefault(); startRecording(); }} onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}>
-                        {isRecording ? "🔴" : "🎙️"}
-                    </button>
+                    <>
+                        {showCamOptions && (
+                            <div className="cam-popup">
+                                <button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button>
+                                <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button>
+                            </div>
+                        )}
+                        <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
+                        <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
+                        
+                        {recState === 'idle' ? (
+                            <>
+                                <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
+                                <input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
+                            </>
+                        ) : (
+                            <div style={{flex:1, color:'#888', paddingLeft:10}} className="slide-to-cancel">Slide to cancel &lt;</div>
+                        )}
+
+                        {recState === 'holding' && (
+                            <div className="lock-hint">🔒 Slide up to lock</div>
+                        )}
+
+                        {chatInput.trim() !== "" ? (
+                            <button className="send-btn" onClick={sendMessage}>↑</button>
+                        ) : (
+                            <button 
+                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
+                                onMouseDown={startRecording}
+                                onMouseUp={stopRecordingAndSend}
+                                onMouseLeave={stopRecordingAndSend}
+                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
+                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
+                            >
+                                🎙️
+                            </button>
+                        )}
+                    </>
                 )}
              </div>
           </div>
@@ -495,7 +591,7 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Professional Question... ✨</h2>
+             <h2>Generating Exam Question... ✨</h2>
            </div>
         )}
         
@@ -549,22 +645,14 @@ function App() {
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
                 <div style={{display:'flex', gap:5}}>
                   <button onClick={toggleAI} style={{background: isListeningAI ? '#FF3B30' : (aiSpeaking ? '#FFD60A' : '#2c2c2e'), color: aiSpeaking ? 'black' : 'white', border:'1px solid #444', borderRadius:'20px', padding:'8px 14px', fontWeight: 500}}>
-                    {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask Tutor")}
+                    {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask AI")}
                   </button>
                 </div>
             </div>
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             
-            {/* 🟢 EXAM YEAR TAG - NOW RIGHT NEXT TO THE QUESTION */}
-            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}>
-                <MathText text={question.question} />
-                {question.exam_year && (
-                    <span style={{fontSize: '0.6em', color: '#FFD60A', border: '1px solid #FFD60A', padding: '2px 8px', borderRadius: '12px', marginLeft: '10px', verticalAlign: 'middle', whiteSpace: 'nowrap'}}>
-                        {question.exam_year}
-                    </span>
-                )}
-            </h3>
+            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question.question} /></h3>
 
             {gameState === 'playing' && (
               <div className="grid">
@@ -591,11 +679,12 @@ function App() {
                    <strong style={{color:'#34C759'}}>Correct Answer: Option {getLetter(getCorrectIndex())}</strong>
                    <div style={{marginTop:8, fontSize: '1.2em'}}><MathText text={roundResult.correctAnswer} /></div>
                 </div>
-                
-                {/* 🟢 SCROLLABLE SOLUTION BOX */}
-                <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', marginTop:15, lineHeight: 1.6, maxHeight: '200px', overflowY: 'auto', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px'}}>
-                    <MathText text={roundResult.explanation} />
-                </div>
+                <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', marginTop:15, lineHeight: 1.6}}><MathText text={roundResult.explanation} /></div>
+                {question.exam_year && (
+                    <div style={{marginTop:15, textAlign:'center', fontSize: '0.9em', color: '#FFD60A', border: '1px solid #FFD60A', display: 'inline-block', padding: '4px 10px', borderRadius: '15px'}}>
+                        📚 Exam: {question.exam_year}
+                    </div>
+                )}
               </div>
             )}
 
