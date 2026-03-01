@@ -14,7 +14,6 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 ROBUST MATH RENDERER
 const MathText = ({ text }) => {
   if (!text) return null;
   let cleanText = String(text)
@@ -92,14 +91,23 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isListeningAI, setIsListeningAI] = useState(false);
+  const [aiSpeaking, setAiSpeaking] = useState(false);
   
-  // 🟢 NEW AI VOICE STATES
-  const [aiState, setAiState] = useState('idle'); // 'idle', 'listening', 'thinking', 'speaking'
+  // 🟢 AI & AUDIO VISUALIZER REFS
+  const [aiState, setAiState] = useState('idle'); 
   const recognitionRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const microphoneRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  // Using refs to directly manipulate DOM for 60fps performance without re-renders
+  const bar1Ref = useRef(null);
+  const bar2Ref = useRef(null);
+  const bar3Ref = useRef(null);
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
-  const audioContextRef = useRef(null);
   const roomInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -111,8 +119,54 @@ function App() {
       if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
   };
 
+  // 🟢 REAL-TIME WAVE ANIMATION LOGIC
+  const startVisualizer = async () => {
+      try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const analyser = audioCtx.createAnalyser();
+          const microphone = audioCtx.createMediaStreamSource(stream);
+          microphone.connect(analyser);
+          analyser.fftSize = 256;
+          
+          audioContextRef.current = audioCtx;
+          analyserRef.current = analyser;
+          microphoneRef.current = microphone;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          
+          const animate = () => {
+              if (!analyserRef.current) return;
+              analyserRef.current.getByteFrequencyData(dataArray);
+              
+              // Get volume levels for 3 distinct bars (Low, Mid, High freq)
+              const vol1 = dataArray[10] / 2;  
+              const vol2 = dataArray[30] / 2;
+              const vol3 = dataArray[50] / 2;
+
+              if (bar1Ref.current) bar1Ref.current.style.height = `${Math.max(4, vol1)}px`;
+              if (bar2Ref.current) bar2Ref.current.style.height = `${Math.max(6, vol2 * 1.5)}px`; // Center bar taller
+              if (bar3Ref.current) bar3Ref.current.style.height = `${Math.max(4, vol3)}px`;
+
+              animationFrameRef.current = requestAnimationFrame(animate);
+          };
+          animate();
+      } catch (e) { console.error("Visualizer Error", e); }
+  };
+
+  const stopVisualizer = () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (microphoneRef.current) microphoneRef.current.disconnect();
+      if (audioContextRef.current) audioContextRef.current.close();
+      audioContextRef.current = null;
+      // Reset bars to flat
+      if (bar1Ref.current) bar1Ref.current.style.height = '4px';
+      if (bar2Ref.current) bar2Ref.current.style.height = '4px';
+      if (bar3Ref.current) bar3Ref.current.style.height = '4px';
+  };
+
   useEffect(() => {
-    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); unlockAudio(); }
+    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); }
   }, []);
 
   useEffect(() => {
@@ -121,7 +175,6 @@ function App() {
         if (gameState === 'menu') setGameState('lobby');
         localStorage.setItem("bs_room", roomCode);
         localStorage.setItem("bs_user", username);
-        unlockAudio();
     });
 
     socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
@@ -135,7 +188,8 @@ function App() {
       setHistoryLength(prev => prev + 1);
       setHistoryIndex(prev => prev + 1);
       window.speechSynthesis.cancel();
-      setAiState('idle'); // Reset AI on new question
+      setAiState('idle'); 
+      stopVisualizer();
     });
 
     socket.on('lock_host', () => setCanMoveOn(false));
@@ -149,8 +203,8 @@ function App() {
         if(data.isReview) setIsHistoryMode(true); 
     });
     
-    // 🟢 AI REPLY HANDLER
     socket.on('ai_voice_reply', ({ text }) => { 
+        stopVisualizer(); // Stop listening visualizer
         setAiState('speaking'); 
         speakText(text); 
     });
@@ -181,36 +235,27 @@ function App() {
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
   
-  // 🟢 IMPROVED TEXT-TO-SPEECH
   const speakText = (text) => {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.1; // Slightly faster natural speed
-    u.pitch = 1.0;
-    u.onend = () => setAiState('idle');
+    u.rate = 1.1; 
+    u.onend = () => { setAiState('idle'); stopVisualizer(); };
     window.speechSynthesis.speak(u);
   };
 
-  // 🟢 NEW "BRAINSYNC WAVE" AI CONTROLLER
   const toggleAI = () => {
-    // Case 1: If Speaking -> STOP
-    if (aiState === 'speaking' || aiState === 'thinking') {
+    // STOP EVERYTHING
+    if (aiState === 'speaking' || aiState === 'thinking' || aiState === 'listening') {
         window.speechSynthesis.cancel();
         if (recognitionRef.current) recognitionRef.current.stop();
+        stopVisualizer();
         setAiState('idle');
         return;
     }
 
-    // Case 2: If Listening -> STOP
-    if (aiState === 'listening') {
-        if (recognitionRef.current) recognitionRef.current.stop();
-        setAiState('idle');
-        return;
-    }
-
-    // Case 3: If Idle -> START LISTENING
+    // START LISTENING
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return toast.error("Use Chrome for AI Voice");
+    if (!SpeechRecognition) return toast.error("Use Chrome/Edge for AI Voice");
     
     const r = new SpeechRecognition();
     r.lang = 'en-US';
@@ -219,22 +264,24 @@ function App() {
 
     r.onstart = () => {
         setAiState('listening');
+        startVisualizer(); // 🟢 START THE REAL WAVE ANIMATION
     };
 
     r.onresult = (e) => {
         const transcript = e.results[0][0].transcript;
-        setAiState('thinking'); // Transition to thinking animation
+        stopVisualizer();
+        setAiState('thinking'); 
         socket.emit('ask_ai', { roomCode, userQuery: transcript }); 
     };
 
-    r.onerror = (e) => {
-        setAiState('idle');
-        toast.error("Did not hear you.");
+    r.onerror = () => { 
+        setAiState('idle'); 
+        stopVisualizer(); 
+        toast.error("Did not hear you."); 
     };
     
-    r.onend = () => {
-        // If we finished listening but haven't sent a query yet (handled in onresult), reset.
-        if (aiState === 'listening') setAiState('thinking');
+    r.onend = () => { 
+        if (aiState === 'listening') { setAiState('thinking'); stopVisualizer(); } 
     };
 
     recognitionRef.current = r;
@@ -246,15 +293,18 @@ function App() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorderRef.current = new MediaRecorder(stream);
         audioChunksRef.current = [];
-        
-        mediaRecorderRef.current.ondataavailable = (e) => { 
-            if (e.data.size > 0) audioChunksRef.current.push(e.data); 
-        };
-        
+        mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
         mediaRecorderRef.current.onstop = () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+                const msg = { username, text: "", image: null, audio: reader.result, time: new Date().toLocaleTimeString() };
+                setMessages(prev => [...prev, msg]);
+                socket.emit('send_message', { roomCode, ...msg });
+            };
             stream.getTracks().forEach(track => track.stop());
         };
-
         mediaRecorderRef.current.start();
         setRecState('holding');
         setRecTime(0);
@@ -263,9 +313,7 @@ function App() {
         if (recTimerRef.current) clearInterval(recTimerRef.current);
         recTimerRef.current = setInterval(() => setRecTime(t => t + 1), 1000);
         
-    } catch (err) { 
-        toast.error("Microphone access denied!"); 
-    }
+    } catch (err) { toast.error("Microphone access denied!"); }
   };
 
   const stopRecordingAndSend = () => {
@@ -312,6 +360,7 @@ function App() {
   };
 
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
+  
   const joinRoom = () => { 
       if (username && roomCode) {
           setQuizHistory([]); 
@@ -441,36 +490,23 @@ function App() {
         .rec-timer-container { display: flex; align-items: center; gap: 10px; color: white; font-family: monospace; font-size: 16px; font-weight: bold; }
         .rec-wave { display: flex; align-items: center; gap: 3px; height: 20px; }
         .rec-bar { width: 3px; background: #0A84FF; border-radius: 2px; animation: wave 1s ease-in-out infinite; }
-        .rec-bar:nth-child(1) { height: 10px; animation-delay: 0.0s; }
-        .rec-bar:nth-child(2) { height: 15px; animation-delay: 0.1s; }
-        .rec-bar:nth-child(3) { height: 20px; animation-delay: 0.2s; }
-        .rec-bar:nth-child(4) { height: 12px; animation-delay: 0.3s; }
-        .rec-bar:nth-child(5) { height: 18px; animation-delay: 0.4s; }
-        
         .mic-btn-hold { background: linear-gradient(135deg, #0A84FF, #5E5CE6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: 0.2s; box-shadow: 0 0 20px rgba(10, 132, 255, 0.6); transform: scale(1.1); }
         .mic-btn { background: transparent; color: #0A84FF; border: 2px solid #0A84FF; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.2s; }
-        .mic-btn:hover { background: rgba(10, 132, 255, 0.1); }
         
-        @keyframes wave { 0%, 100% { height: 5px; } 50% { height: 20px; } }
-        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } 50% { box-shadow: 0 0 15px rgba(10, 132, 255, 0.5); } 100% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } }
-
-        /* 🟢 NEW AI BUTTON STYLES */
+        /* 🟢 NEW AI BUTTON STYLES WITH REAL BARS */
         .ai-btn { background: #333; color: white; border: 1px solid #555; border-radius: 25px; padding: 8px 16px; display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; overflow: hidden; position: relative; }
         .ai-btn.listening { background: #1a472a; border-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
         .ai-btn.speaking { background: #4a2c4a; border-color: #e056fd; box-shadow: 0 0 10px #e056fd; }
         .ai-btn.thinking { background: #4a3b1a; border-color: #f1c40f; animation: pulse-border 1.5s infinite; }
         
-        .ai-wave-container { display: flex; align-items: center; gap: 2px; height: 15px; margin-left: 5px; }
-        .ai-bar { width: 3px; background: white; border-radius: 2px; animation: quiet 1s infinite; }
-        .ai-btn.listening .ai-bar { background: #2ecc71; animation: active-wave 0.5s infinite alternate; }
+        .ai-wave-container { display: flex; align-items: center; gap: 3px; height: 15px; margin-left: 5px; }
+        .ai-bar { width: 3px; background: white; border-radius: 2px; height: 4px; transition: height 0.05s ease; }
+        
+        .ai-btn.listening .ai-bar { background: #2ecc71; }
         .ai-btn.speaking .ai-bar { background: #e056fd; animation: active-wave 0.3s infinite alternate; }
+        .ai-btn.speaking .ai-bar:nth-child(2) { animation-delay: 0.1s; }
         
-        .ai-bar:nth-child(1) { animation-delay: 0.0s; }
-        .ai-bar:nth-child(2) { animation-delay: 0.1s; }
-        .ai-bar:nth-child(3) { animation-delay: 0.2s; }
-        
-        @keyframes active-wave { 0% { height: 3px; } 100% { height: 15px; } }
-        @keyframes quiet { 0% { height: 3px; opacity: 0.5; } 100% { height: 3px; opacity: 0.5; } }
+        @keyframes active-wave { 0% { height: 4px; } 100% { height: 16px; } }
         @keyframes pulse-border { 0% { border-color: #555; } 50% { border-color: #f1c40f; } 100% { border-color: #555; } }
 
         .cam-popup { position: absolute; bottom: 80px; left: 15px; background: rgba(44, 44, 46, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 5px; z-index: 10002; }
@@ -562,18 +598,13 @@ function App() {
                 ))}
                 <div ref={messagesEndRef} />
              </div>
-             
              <div className="chat-input-area" onTouchMove={handleTouchMove}>
                 {recState === 'locked' ? (
                     <div className="rec-locked-container">
                         <button onClick={cancelRecording} style={{background:'none', border:'none', color:'#FF3B30', fontSize:'20px'}}>❌</button>
                         <div className="rec-timer-container">
                             <div className="rec-wave">
-                                <div className="rec-bar"></div>
-                                <div className="rec-bar"></div>
-                                <div className="rec-bar"></div>
-                                <div className="rec-bar"></div>
-                                <div className="rec-bar"></div>
+                                <div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div>
                             </div>
                             <span>{formatRecTime(recTime)}</span>
                         </div>
@@ -589,27 +620,12 @@ function App() {
                         )}
                         <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
                         <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
-                        
-                        {recState === 'idle' ? (
-                            <>
-                                <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
-                                <input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
-                            </>
-                        ) : (
-                            <div style={{flex:1, color:'#888', paddingLeft:10}} className="slide-to-cancel">Slide to cancel &lt;</div>
-                        )}
-
+                        <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
+                        <input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
                         {chatInput.trim() !== "" ? (
                             <button className="send-btn" onClick={sendMessage}>↑</button>
                         ) : (
-                            <button 
-                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
-                                onMouseDown={startRecording}
-                                onMouseUp={stopRecordingAndSend}
-                                onMouseLeave={stopRecordingAndSend}
-                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
-                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
-                            >
+                            <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onMouseDown={startRecording} onMouseUp={stopRecordingAndSend} onMouseLeave={stopRecordingAndSend} onTouchStart={(e) => { e.preventDefault(); startRecording(); }} onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}>
                                 🎙️
                             </button>
                         )}
@@ -621,14 +637,12 @@ function App() {
 
       <div style={{display:'flex', flexDirection:'column', alignItems:'center', width:'100%'}}>
         <h1 className="logo">🧠 BrainSync</h1>
-        
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Exam Question... ✨</h2>
+             <h2>Generating Professional Question... ✨</h2>
            </div>
         )}
-        
         {gameState === 'menu' && (
           <div className="card">
             <h2>Student Login</h2>
@@ -652,7 +666,6 @@ function App() {
              <button onClick={handleStart} disabled={selectedTopics.length === 0} className="primary-btn" style={{background: selectedTopics.length > 0 ? '#34C759' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>
                 {selectedTopics.length > 0 ? `🚀 Start Quiz (${selectedTopics.length} Topics)` : "⚠️ Select Topics First"}
              </button>
-             
              {quizHistory && quizHistory.length > 0 && (
                  <button onClick={downloadPDF} style={{width:'100%', background:'#FF3B30', color:'white', border:'none', padding:14, borderRadius:12, marginTop:15, fontWeight:'bold'}}>
                     📥 Download Current Session PDF
@@ -677,25 +690,21 @@ function App() {
             <div className="header-row">
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
-                
-                {/* 🟢 NEW "BRAINSYNC LIVE WAVE" AI BUTTON */}
-                <button 
-                    onClick={toggleAI} 
-                    className={`ai-btn ${aiState}`}
-                >
+                <div style={{display:'flex', gap:5}}>
+                  <button onClick={toggleAI} className={`ai-btn ${aiState}`}>
                     {aiState === 'idle' && <span>🤖 Ask AI</span>}
                     {aiState === 'listening' && <span>👂 Listening</span>}
                     {aiState === 'thinking' && <span>🧠 Thinking...</span>}
                     {aiState === 'speaking' && <span>🔊 Speaking</span>}
-                    
                     {aiState !== 'idle' && (
                         <div className="ai-wave-container">
-                            <div className="ai-bar"></div>
-                            <div className="ai-bar"></div>
-                            <div className="ai-bar"></div>
+                            <div className="ai-bar" ref={bar1Ref}></div>
+                            <div className="ai-bar" ref={bar2Ref}></div>
+                            <div className="ai-bar" ref={bar3Ref}></div>
                         </div>
                     )}
-                </button>
+                  </button>
+                </div>
             </div>
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
