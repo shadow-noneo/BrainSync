@@ -14,22 +14,39 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
+// 🟢 NUCLEAR MATH REPAIR: This specifically targets the "rac" and "\f" bug
 const MathText = ({ text }) => {
   if (!text) return null;
+  
+  // 1. Force fix the specific JSON escape errors BEFORE processing
   let cleanText = String(text)
+     .replace(/\\f/g, 'f')       // Remove escaped f if it exists
+     .replace(/\f/g, '')         // Remove actual form-feed character
+     .replace(/rac\{/g, '\\frac{') // Force "rac{" to become "\frac{"
+     .replace(/\\rac\{/g, '\\frac{') 
+     .replace(/ight/g, '\\right')
+     .replace(/eft/g, '\\left')
+     .replace(/int/g, '\\int')
      .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
      .replace(/\\\[/g, '$').replace(/\\\]/g, '$')
      .replace(/\$\$/g, '$');
      
   const parts = cleanText.split('$');
+  
   return (
-    <span style={{ fontSize: '1.1em', wordBreak: 'break-word' }}>
+    <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
       {parts.map((p, i) => {
         if (!p) return null;
         if (i % 2 === 1) {
-          return <InlineMath key={i} math={p} renderError={() => <span style={{color: '#FFD60A'}}>{p}</span>} />;
+          // Inside $...$ (Math Mode)
+          return (
+            <span key={i}>
+                <InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} />
+            </span>
+          );
         } else {
-          if (/[\\]|[\^]|[_]/.test(p)) {
+          // Outside $...$ (Text Mode) - Catch leaked math
+          if (/[\\]|[\^]|[_]/.test(p) || p.includes('frac')) {
               return <InlineMath key={i} math={p} renderError={() => <span>{p}</span>} />;
           }
           return <span key={i}>{p}</span>;
@@ -91,17 +108,13 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   
   const [profileOpen, setProfileOpen] = useState(false);
-  const [isListeningAI, setIsListeningAI] = useState(false);
-  const [aiSpeaking, setAiSpeaking] = useState(false);
-  
-  // 🟢 AI & AUDIO VISUALIZER REFS
   const [aiState, setAiState] = useState('idle'); 
+  
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const microphoneRef = useRef(null);
   const animationFrameRef = useRef(null);
-  // Using refs to directly manipulate DOM for 60fps performance without re-renders
   const bar1Ref = useRef(null);
   const bar2Ref = useRef(null);
   const bar3Ref = useRef(null);
@@ -119,7 +132,6 @@ function App() {
       if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
   };
 
-  // 🟢 REAL-TIME WAVE ANIMATION LOGIC
   const startVisualizer = async () => {
       try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -139,13 +151,12 @@ function App() {
               if (!analyserRef.current) return;
               analyserRef.current.getByteFrequencyData(dataArray);
               
-              // Get volume levels for 3 distinct bars (Low, Mid, High freq)
               const vol1 = dataArray[10] / 2;  
               const vol2 = dataArray[30] / 2;
               const vol3 = dataArray[50] / 2;
 
               if (bar1Ref.current) bar1Ref.current.style.height = `${Math.max(4, vol1)}px`;
-              if (bar2Ref.current) bar2Ref.current.style.height = `${Math.max(6, vol2 * 1.5)}px`; // Center bar taller
+              if (bar2Ref.current) bar2Ref.current.style.height = `${Math.max(6, vol2 * 1.5)}px`;
               if (bar3Ref.current) bar3Ref.current.style.height = `${Math.max(4, vol3)}px`;
 
               animationFrameRef.current = requestAnimationFrame(animate);
@@ -159,14 +170,13 @@ function App() {
       if (microphoneRef.current) microphoneRef.current.disconnect();
       if (audioContextRef.current) audioContextRef.current.close();
       audioContextRef.current = null;
-      // Reset bars to flat
       if (bar1Ref.current) bar1Ref.current.style.height = '4px';
       if (bar2Ref.current) bar2Ref.current.style.height = '4px';
       if (bar3Ref.current) bar3Ref.current.style.height = '4px';
   };
 
   useEffect(() => {
-    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); }
+    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); unlockAudio(); }
   }, []);
 
   useEffect(() => {
@@ -175,6 +185,7 @@ function App() {
         if (gameState === 'menu') setGameState('lobby');
         localStorage.setItem("bs_room", roomCode);
         localStorage.setItem("bs_user", username);
+        unlockAudio();
     });
 
     socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
@@ -204,7 +215,7 @@ function App() {
     });
     
     socket.on('ai_voice_reply', ({ text }) => { 
-        stopVisualizer(); // Stop listening visualizer
+        stopVisualizer(); 
         setAiState('speaking'); 
         speakText(text); 
     });
@@ -244,7 +255,6 @@ function App() {
   };
 
   const toggleAI = () => {
-    // STOP EVERYTHING
     if (aiState === 'speaking' || aiState === 'thinking' || aiState === 'listening') {
         window.speechSynthesis.cancel();
         if (recognitionRef.current) recognitionRef.current.stop();
@@ -253,7 +263,6 @@ function App() {
         return;
     }
 
-    // START LISTENING
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return toast.error("Use Chrome/Edge for AI Voice");
     
@@ -264,7 +273,7 @@ function App() {
 
     r.onstart = () => {
         setAiState('listening');
-        startVisualizer(); // 🟢 START THE REAL WAVE ANIMATION
+        startVisualizer(); 
     };
 
     r.onresult = (e) => {
@@ -274,15 +283,8 @@ function App() {
         socket.emit('ask_ai', { roomCode, userQuery: transcript }); 
     };
 
-    r.onerror = () => { 
-        setAiState('idle'); 
-        stopVisualizer(); 
-        toast.error("Did not hear you."); 
-    };
-    
-    r.onend = () => { 
-        if (aiState === 'listening') { setAiState('thinking'); stopVisualizer(); } 
-    };
+    r.onerror = () => { setAiState('idle'); stopVisualizer(); toast.error("Did not hear you."); };
+    r.onend = () => { if (aiState === 'listening') { setAiState('thinking'); stopVisualizer(); } };
 
     recognitionRef.current = r;
     r.start();
@@ -309,10 +311,8 @@ function App() {
         setRecState('holding');
         setRecTime(0);
         setRecStartTime(Date.now());
-        
         if (recTimerRef.current) clearInterval(recTimerRef.current);
         recTimerRef.current = setInterval(() => setRecTime(t => t + 1), 1000);
-        
     } catch (err) { toast.error("Microphone access denied!"); }
   };
 
@@ -321,7 +321,6 @@ function App() {
           setRecState('locked');
           return;
       }
-
       if (mediaRecorderRef.current && (recState === 'holding' || recState === 'locked')) {
           mediaRecorderRef.current.onstop = () => {
               const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -360,14 +359,7 @@ function App() {
   };
 
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
-  
-  const joinRoom = () => { 
-      if (username && roomCode) {
-          setQuizHistory([]); 
-          socket.emit('join_room', { roomCode, username }); 
-      } else toast.error("Enter Details"); 
-  };
-  
+  const joinRoom = () => { if (username && roomCode) { setQuizHistory([]); socket.emit('join_room', { roomCode, username }); } else toast.error("Enter Details"); };
   const handleAnswer = (opt, index) => { setSelectedOptionIndex(index); socket.emit('submit_answer', { roomCode, answerIndex: index, username }); };
   const navPrev = () => { socket.emit('nav_prev', { roomCode }); setHistoryIndex(prev => Math.max(0, prev - 1)); };
   
@@ -382,7 +374,11 @@ function App() {
       }
   };
   
-  const setLimitAndOpenMenu = (limit) => { setQuestionLimit(limit.toString()); setMenuOpen(true); };
+  const setLimitAndOpenMenu = (limit) => { 
+      setQuestionLimit(limit.toString()); 
+      setMenuOpen(true); 
+      if (document.activeElement) document.activeElement.blur();
+  };
 
   const handleStart = () => {
       if (gameState === 'lobby' && selectedTopics.length === 0) return toast.error("Select at least 1 topic!");
@@ -473,8 +469,11 @@ function App() {
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
-        .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1c1c1e; padding: 20px; z-index: 10001; border-right: 1px solid #333; overflow-y: auto; }
+        
+        /* 🟢 MOBILE KEYBOARD FIX: Sidebar uses dynamic viewport height */
+        .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
+        
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
@@ -484,16 +483,26 @@ function App() {
         .msg-bubble.mine .msg-user { text-align: right; }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 5px; cursor: pointer; }
         .msg-audio { width: 100%; max-width: 220px; height: 35px; margin-top: 5px; border-radius: 20px; outline: none; }
+        
         .chat-input-area { padding: 10px 15px; display: flex; gap: 10px; align-items: center; min-height: 60px; position: relative; }
         
         .rec-locked-container { display: flex; align-items: center; width: 100%; justify-content: space-between; padding: 5px 15px; background: rgba(10, 132, 255, 0.1); border-radius: 30px; border: 1px solid #0A84FF; animation: glow 2s infinite; }
         .rec-timer-container { display: flex; align-items: center; gap: 10px; color: white; font-family: monospace; font-size: 16px; font-weight: bold; }
         .rec-wave { display: flex; align-items: center; gap: 3px; height: 20px; }
         .rec-bar { width: 3px; background: #0A84FF; border-radius: 2px; animation: wave 1s ease-in-out infinite; }
+        .rec-bar:nth-child(1) { height: 10px; animation-delay: 0.0s; }
+        .rec-bar:nth-child(2) { height: 15px; animation-delay: 0.1s; }
+        .rec-bar:nth-child(3) { height: 20px; animation-delay: 0.2s; }
+        .rec-bar:nth-child(4) { height: 12px; animation-delay: 0.3s; }
+        .rec-bar:nth-child(5) { height: 18px; animation-delay: 0.4s; }
+        
         .mic-btn-hold { background: linear-gradient(135deg, #0A84FF, #5E5CE6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: 0.2s; box-shadow: 0 0 20px rgba(10, 132, 255, 0.6); transform: scale(1.1); }
         .mic-btn { background: transparent; color: #0A84FF; border: 2px solid #0A84FF; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.2s; }
+        .mic-btn:hover { background: rgba(10, 132, 255, 0.1); }
         
-        /* 🟢 NEW AI BUTTON STYLES WITH REAL BARS */
+        @keyframes wave { 0%, 100% { height: 5px; } 50% { height: 20px; } }
+        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } 50% { box-shadow: 0 0 15px rgba(10, 132, 255, 0.5); } 100% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } }
+
         .ai-btn { background: #333; color: white; border: 1px solid #555; border-radius: 25px; padding: 8px 16px; display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; overflow: hidden; position: relative; }
         .ai-btn.listening { background: #1a472a; border-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
         .ai-btn.speaking { background: #4a2c4a; border-color: #e056fd; box-shadow: 0 0 10px #e056fd; }
@@ -501,7 +510,6 @@ function App() {
         
         .ai-wave-container { display: flex; align-items: center; gap: 3px; height: 15px; margin-left: 5px; }
         .ai-bar { width: 3px; background: white; border-radius: 2px; height: 4px; transition: height 0.05s ease; }
-        
         .ai-btn.listening .ai-bar { background: #2ecc71; }
         .ai-btn.speaking .ai-bar { background: #e056fd; animation: active-wave 0.3s infinite alternate; }
         .ai-btn.speaking .ai-bar:nth-child(2) { animation-delay: 0.1s; }
@@ -521,7 +529,14 @@ function App() {
         @keyframes galaxy { 100% { transform: rotate(360deg); } }
         .galaxy-ring { width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0A84FF, #FF3B30, #FFD60A, #34C759, #0A84FF); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0); animation: galaxy 1s linear infinite; margin: 20px auto; }
         
-        @media (max-width: 600px) { .chat-sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { 
+            .chat-sidebar { width: 100%; } 
+            .grid { grid-template-columns: 1fr; } 
+            .menu-btn { top: 15px; left: 15px; font-size: 14px; padding: 6px 12px; }
+            .profile-btn { top: 15px; right: 15px; width: 35px; height: 35px; padding: 6px; }
+            .chat-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 22px; }
+            .sidebar { width: 100%; max-width: 100%; border-right: none; }
+        }
       `}</style>
 
       {gameState !== 'menu' && !menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
@@ -575,9 +590,14 @@ function App() {
                  </div>
              )}
           </div>
-          <button onClick={() => setMenuOpen(false)} style={{width: '100%', padding: '12px', background: '#34C759', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '20px'}}>
-             ✅ Done
-          </button>
+          <div style={{display:'flex', gap:10, marginTop: 20}}>
+              <button onClick={handleStart} style={{flex:1, padding: '12px', background: selectedTopics.length > 0 ? '#0A84FF' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>
+                 🚀 Start Quiz
+              </button>
+              <button onClick={() => setMenuOpen(false)} style={{width: '80px', padding: '12px', background: '#34C759', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px'}}>
+                 ✅
+              </button>
+          </div>
         </div>
       )}
 
@@ -640,9 +660,10 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Professional Question... ✨</h2>
+             <h2>Generating Exam Question... ✨</h2>
            </div>
         )}
+        
         {gameState === 'menu' && (
           <div className="card">
             <h2>Student Login</h2>
@@ -660,7 +681,20 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setMenuOpen(true)} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
+                {/* 🟢 MOBILE KEYBOARD FIX: Automatically closes keyboard on Enter */}
+                <input 
+                    type="number" 
+                    placeholder="Custom #" 
+                    value={questionLimit} 
+                    onChange={(e) => setQuestionLimit(e.target.value)} 
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.target.blur(); // Close the mobile keyboard
+                            setMenuOpen(true);
+                        }
+                    }} 
+                    style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} 
+                />
              </div>
              <p>2. Select Topics from ☰ Menu.</p>
              <button onClick={handleStart} disabled={selectedTopics.length === 0} className="primary-btn" style={{background: selectedTopics.length > 0 ? '#34C759' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>
