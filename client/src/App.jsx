@@ -101,21 +101,11 @@ function App() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [historyLength, setHistoryLength] = useState(0);
   const [canMoveOn, setCanMoveOn] = useState(false);
-  
   const [profileOpen, setProfileOpen] = useState(false);
-  
-  const [aiState, setAiState] = useState('idle'); 
-  const recognitionRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const microphoneRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const bar1Ref = useRef(null);
-  const bar2Ref = useRef(null);
-  const bar3Ref = useRef(null);
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const audioContextRef = useRef(null);
   const roomInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -125,49 +115,6 @@ function App() {
   const unlockAudio = () => {
       if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
-  };
-
-  const startVisualizer = async () => {
-      try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          const analyser = audioCtx.createAnalyser();
-          const microphone = audioCtx.createMediaStreamSource(stream);
-          microphone.connect(analyser);
-          analyser.fftSize = 256;
-          
-          audioContextRef.current = audioCtx;
-          analyserRef.current = analyser;
-          microphoneRef.current = microphone;
-
-          const dataArray = new Uint8Array(analyser.frequencyBinCount);
-          
-          const animate = () => {
-              if (!analyserRef.current) return;
-              analyserRef.current.getByteFrequencyData(dataArray);
-              
-              const vol1 = dataArray[10] / 2;  
-              const vol2 = dataArray[30] / 2;
-              const vol3 = dataArray[50] / 2;
-
-              if (bar1Ref.current) bar1Ref.current.style.height = `${Math.max(4, vol1)}px`;
-              if (bar2Ref.current) bar2Ref.current.style.height = `${Math.max(6, vol2 * 1.5)}px`;
-              if (bar3Ref.current) bar3Ref.current.style.height = `${Math.max(4, vol3)}px`;
-
-              animationFrameRef.current = requestAnimationFrame(animate);
-          };
-          animate();
-      } catch (e) { console.error("Visualizer Error", e); }
-  };
-
-  const stopVisualizer = () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (microphoneRef.current) microphoneRef.current.disconnect();
-      if (audioContextRef.current) audioContextRef.current.close();
-      audioContextRef.current = null;
-      if (bar1Ref.current) bar1Ref.current.style.height = '4px';
-      if (bar2Ref.current) bar2Ref.current.style.height = '4px';
-      if (bar3Ref.current) bar3Ref.current.style.height = '4px';
   };
 
   useEffect(() => {
@@ -193,9 +140,6 @@ function App() {
       setIsHistoryMode(false); 
       setHistoryLength(prev => prev + 1);
       setHistoryIndex(prev => prev + 1);
-      window.speechSynthesis.cancel();
-      setAiState('idle'); 
-      stopVisualizer();
     });
 
     socket.on('lock_host', () => setCanMoveOn(false));
@@ -207,12 +151,6 @@ function App() {
         setRoundResult(data); 
         setGameState('result'); 
         if(data.isReview) setIsHistoryMode(true); 
-    });
-    
-    socket.on('ai_voice_reply', ({ text }) => { 
-        stopVisualizer(); 
-        setAiState('speaking'); 
-        speakText(text); 
     });
 
     socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
@@ -241,50 +179,6 @@ function App() {
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
   
-  const speakText = (text) => {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.1; 
-    u.onend = () => { setAiState('idle'); stopVisualizer(); };
-    window.speechSynthesis.speak(u);
-  };
-
-  const toggleAI = () => {
-    if (aiState === 'speaking' || aiState === 'thinking' || aiState === 'listening') {
-        window.speechSynthesis.cancel();
-        if (recognitionRef.current) recognitionRef.current.stop();
-        stopVisualizer();
-        setAiState('idle');
-        return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return toast.error("Use Chrome/Edge for AI Voice");
-    
-    const r = new SpeechRecognition();
-    r.lang = 'en-US';
-    r.continuous = false;
-    r.interimResults = false;
-
-    r.onstart = () => {
-        setAiState('listening');
-        startVisualizer(); 
-    };
-
-    r.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        stopVisualizer();
-        setAiState('thinking'); 
-        socket.emit('ask_ai', { roomCode, userQuery: transcript }); 
-    };
-
-    r.onerror = () => { setAiState('idle'); stopVisualizer(); toast.error("Did not hear you."); };
-    r.onend = () => { if (aiState === 'listening') { setAiState('thinking'); stopVisualizer(); } };
-
-    recognitionRef.current = r;
-    r.start();
-  };
-
   const startRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -359,8 +253,6 @@ function App() {
   const navPrev = () => { socket.emit('nav_prev', { roomCode }); setHistoryIndex(prev => Math.max(0, prev - 1)); };
   
   const handleSmartNext = () => {
-      window.speechSynthesis.cancel();
-      setAiState('idle');
       if (isHistoryMode && historyIndex < historyLength - 1) {
           socket.emit('nav_next', { roomCode });
           setHistoryIndex(prev => prev + 1);
@@ -372,6 +264,7 @@ function App() {
   const setLimitAndOpenMenu = (limit) => { 
       setQuestionLimit(limit.toString()); 
       setMenuOpen(true); 
+      // 🟢 PREVENT KEYBOARD GLITCH
       if (document.activeElement) document.activeElement.blur();
   };
 
@@ -465,6 +358,7 @@ function App() {
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
         
+        /* 🟢 MOBILE KEYBOARD FIX: Sidebar uses dynamic viewport height */
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         
@@ -496,20 +390,6 @@ function App() {
         
         @keyframes wave { 0%, 100% { height: 5px; } 50% { height: 20px; } }
         @keyframes glow { 0% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } 50% { box-shadow: 0 0 15px rgba(10, 132, 255, 0.5); } 100% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } }
-
-        .ai-btn { background: #333; color: white; border: 1px solid #555; border-radius: 25px; padding: 8px 16px; display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; overflow: hidden; position: relative; }
-        .ai-btn.listening { background: #1a472a; border-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
-        .ai-btn.speaking { background: #4a2c4a; border-color: #e056fd; box-shadow: 0 0 10px #e056fd; }
-        .ai-btn.thinking { background: #4a3b1a; border-color: #f1c40f; animation: pulse-border 1.5s infinite; }
-        
-        .ai-wave-container { display: flex; align-items: center; gap: 3px; height: 15px; margin-left: 5px; }
-        .ai-bar { width: 3px; background: white; border-radius: 2px; height: 4px; transition: height 0.05s ease; }
-        .ai-btn.listening .ai-bar { background: #2ecc71; }
-        .ai-btn.speaking .ai-bar { background: #e056fd; animation: active-wave 0.3s infinite alternate; }
-        .ai-btn.speaking .ai-bar:nth-child(2) { animation-delay: 0.1s; }
-        
-        @keyframes active-wave { 0% { height: 4px; } 100% { height: 16px; } }
-        @keyframes pulse-border { 0% { border-color: #555; } 50% { border-color: #f1c40f; } 100% { border-color: #555; } }
 
         .cam-popup { position: absolute; bottom: 80px; left: 15px; background: rgba(44, 44, 46, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 5px; z-index: 10002; }
         .cam-popup button { background: transparent; color: white; border: none; padding: 10px 15px; text-align: left; cursor: pointer; border-radius: 8px; }
@@ -654,7 +534,7 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Professional Question... ✨</h2>
+             <h2>Generating Exam Question... ✨</h2>
            </div>
         )}
         
@@ -683,8 +563,8 @@ function App() {
                     onChange={(e) => setQuestionLimit(e.target.value)} 
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                            e.preventDefault(); // 🟢 PREVENT FORM SUBMIT/RELOAD
-                            e.target.blur(); // HIDE KEYBOARD
+                            e.preventDefault(); // 🟢 PREVENT RELOAD/SUBMIT
+                            e.target.blur(); // 🟢 CLOSE KEYBOARD
                             setMenuOpen(true);
                         }
                     }} 
@@ -719,21 +599,6 @@ function App() {
             <div className="header-row">
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
-                <div style={{display:'flex', gap:5}}>
-                  <button onClick={toggleAI} className={`ai-btn ${aiState}`}>
-                    {aiState === 'idle' && <span>🤖 Ask AI</span>}
-                    {aiState === 'listening' && <span>👂 Listening</span>}
-                    {aiState === 'thinking' && <span>🧠 Thinking...</span>}
-                    {aiState === 'speaking' && <span>🔊 Speaking</span>}
-                    {aiState !== 'idle' && (
-                        <div className="ai-wave-container">
-                            <div className="ai-bar" ref={bar1Ref}></div>
-                            <div className="ai-bar" ref={bar2Ref}></div>
-                            <div className="ai-bar" ref={bar3Ref}></div>
-                        </div>
-                    )}
-                  </button>
-                </div>
             </div>
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
