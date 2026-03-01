@@ -14,15 +14,13 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 NUCLEAR MATH REPAIR: This specifically targets the "rac" and "\f" bug
+// 🟢 NUCLEAR MATH REPAIR
 const MathText = ({ text }) => {
   if (!text) return null;
-  
-  // 1. Force fix the specific JSON escape errors BEFORE processing
   let cleanText = String(text)
-     .replace(/\\f/g, 'f')       // Remove escaped f if it exists
-     .replace(/\f/g, '')         // Remove actual form-feed character
-     .replace(/rac\{/g, '\\frac{') // Force "rac{" to become "\frac{"
+     .replace(/\\f/g, 'f') 
+     .replace(/\f/g, '')
+     .replace(/rac\{/g, '\\frac{')
      .replace(/\\rac\{/g, '\\frac{') 
      .replace(/ight/g, '\\right')
      .replace(/eft/g, '\\left')
@@ -32,20 +30,17 @@ const MathText = ({ text }) => {
      .replace(/\$\$/g, '$');
      
   const parts = cleanText.split('$');
-  
   return (
     <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
       {parts.map((p, i) => {
         if (!p) return null;
         if (i % 2 === 1) {
-          // Inside $...$ (Math Mode)
           return (
             <span key={i}>
                 <InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} />
             </span>
           );
         } else {
-          // Outside $...$ (Text Mode) - Catch leaked math
           if (/[\\]|[\^]|[_]/.test(p) || p.includes('frac')) {
               return <InlineMath key={i} math={p} renderError={() => <span>{p}</span>} />;
           }
@@ -108,8 +103,8 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   
   const [profileOpen, setProfileOpen] = useState(false);
-  const [aiState, setAiState] = useState('idle'); 
   
+  const [aiState, setAiState] = useState('idle'); 
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -470,7 +465,6 @@ function App() {
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
         
-        /* 🟢 MOBILE KEYBOARD FIX: Sidebar uses dynamic viewport height */
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         
@@ -660,7 +654,7 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Exam Question... ✨</h2>
+             <h2>Generating Professional Question... ✨</h2>
            </div>
         )}
         
@@ -681,7 +675,7 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                {/* 🟢 MOBILE KEYBOARD FIX: Automatically closes keyboard on Enter */}
+                {/* 🟢 MOBILE KEYBOARD FIX */}
                 <input 
                     type="number" 
                     placeholder="Custom #" 
@@ -689,7 +683,8 @@ function App() {
                     onChange={(e) => setQuestionLimit(e.target.value)} 
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                            e.target.blur(); // Close the mobile keyboard
+                            e.preventDefault(); // 🟢 PREVENT FORM SUBMIT/RELOAD
+                            e.target.blur(); // HIDE KEYBOARD
                             setMenuOpen(true);
                         }
                     }} 
