@@ -111,7 +111,6 @@ function App() {
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
   
-  // Recorder State
   const [recState, setRecState] = useState('idle'); 
   const [recTime, setRecTime] = useState(0);
   const [recStartTime, setRecStartTime] = useState(0);
@@ -126,6 +125,9 @@ function App() {
   const [historyLength, setHistoryLength] = useState(0);
   const [canMoveOn, setCanMoveOn] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  
+  // 🟢 NEW PROGRESS STATE
+  const [studentProgress, setStudentProgress] = useState({ submitted: 0, total: 0 });
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -170,6 +172,9 @@ function App() {
     socket.on('unlock_host', () => { if(!canMoveOn) toast.success("Unlocked! 🔓"); setCanMoveOn(true); });
     socket.on('timer_update', (t) => setTimer(t));
     socket.on('update_scores', (s) => setScores(s));
+    
+    // 🟢 LISTENING FOR PROGRESS
+    socket.on('progress_update', (data) => { setStudentProgress(data); });
     
     socket.on('round_result', (data) => { 
         setRoundResult(data); 
@@ -386,9 +391,14 @@ function App() {
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
         
-        /* 🟢 MOBILE KEYBOARD FIX: Sidebar uses dynamic viewport height */
+        /* 🟢 MOBILE KEYBOARD FIX */
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
+        
+        /* 🟢 SCROLLABLE SOLUTION BOX */
+        .explanation-box { max-height: 250px; overflow-y: auto; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-top: 15px; border: 1px solid rgba(255,255,255,0.1); }
+        .explanation-box::-webkit-scrollbar { width: 8px; }
+        .explanation-box::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
         
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
@@ -547,7 +557,14 @@ function App() {
                         {chatInput.trim() !== "" ? (
                             <button className="send-btn" onClick={sendMessage}>↑</button>
                         ) : (
-                            <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onMouseDown={startRecording} onMouseUp={stopRecordingAndSend} onMouseLeave={stopRecordingAndSend} onTouchStart={(e) => { e.preventDefault(); startRecording(); }} onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}>
+                            <button 
+                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
+                                onMouseDown={startRecording}
+                                onMouseUp={stopRecordingAndSend}
+                                onMouseLeave={stopRecordingAndSend}
+                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
+                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
+                            >
                                 🎙️
                             </button>
                         )}
@@ -578,12 +595,21 @@ function App() {
         {gameState === 'lobby' && role === 'host' && (
           <div className="card">
              <h3>👑 Host Controls</h3>
+             {/* 🟢 NEW PROGRESS BAR FOR HOST */}
+             {studentProgress.total > 0 && (
+                 <div style={{background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                    <span style={{fontWeight:'bold'}}>👨‍🎓 Students Finished:</span>
+                    <span style={{color: studentProgress.submitted === studentProgress.total ? '#34C759' : '#FFD60A', fontWeight:'bold', fontSize:'1.2em'}}>
+                        {studentProgress.submitted} / {studentProgress.total}
+                    </span>
+                 </div>
+             )}
+             
              <p>1. Select Number of Questions:</p>
              <div style={{display:'flex', gap:10, marginBottom:20, flexWrap:'wrap'}}>
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                {/* 🟢 BLANK SCREEN FIX: PREVENT SUBMIT */}
                 <input 
                     type="number" 
                     placeholder="Custom #" 
@@ -631,9 +657,11 @@ function App() {
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             
-            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question.question} /></h3>
+            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}>
+                <MathText text={question?.question || "Loading..."} />
+            </h3>
             
-            {/* 🟢 EXAM YEAR TAG - MOVED HERE */}
+            {/* 🟢 EXAM YEAR TAG - MOVED AFTER QUESTION */}
             {question.exam_year && (
                 <div style={{marginBottom:30, textAlign:'center', fontSize: '0.9em', color: '#FFD60A', border: '1px solid #FFD60A', display: 'inline-block', padding: '4px 10px', borderRadius: '15px', marginLeft: 'auto', marginRight: 'auto', display: 'table'}}>
                     📚 Exam: {question.exam_year}
@@ -642,7 +670,7 @@ function App() {
 
             {gameState === 'playing' && (
               <div className="grid">
-                {question.options.map((opt, i) => (
+                {question?.options?.map((opt, i) => (
                   <button key={i} className={`option-btn ${selectedOptionIndex === i ? 'selected' : ''}`} onClick={() => handleAnswer(opt, i)} disabled={selectedOptionIndex !== null}>
                     <div className="option-badge">{getLetter(i)}</div>
                     <div style={{flex:1, overflow:'hidden', fontSize: '1.1em'}}><MathText text={opt} /></div>
@@ -665,7 +693,13 @@ function App() {
                    <strong style={{color:'#34C759'}}>Correct Answer: Option {getLetter(getCorrectIndex())}</strong>
                    <div style={{marginTop:8, fontSize: '1.2em'}}><MathText text={roundResult.correctAnswer} /></div>
                 </div>
-                <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', marginTop:15, lineHeight: 1.6}}><MathText text={roundResult.explanation} /></div>
+                
+                {/* 🟢 SCROLLABLE SOLUTION BOX */}
+                <div className="explanation-box">
+                    <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', lineHeight: 1.6}}>
+                        <MathText text={roundResult.explanation} />
+                    </div>
+                </div>
               </div>
             )}
 
