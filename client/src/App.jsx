@@ -14,7 +14,7 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 SAFE MATH COMPONENT (Prevents React Crashes)
+// 🟢 SAFE MATH COMPONENT (Crash Proof)
 const MathText = ({ text }) => {
   if (!text) return null;
   try {
@@ -51,7 +51,7 @@ const MathText = ({ text }) => {
         </span>
       );
   } catch (e) {
-      return <span>{text}</span>; // Fallback to raw text if it crashes
+      return <span>{text}</span>; 
   }
 };
 
@@ -73,6 +73,25 @@ const compressImage = (file, callback) => {
         }
     }
 };
+
+// 🟢 HARDCODED SYLLABUS (Prevents undefined errors)
+const SYLLABUS_MATH = [
+    { id: "m1", name: "Module 1: Diff Eq", prompt: "Exact differential Equations" },
+    { id: "m2", name: "Module 2: LDE", prompt: "Linear Differential Equation" },
+    { id: "m3", name: "Module 3: Beta Gamma", prompt: "Beta and Gamma functions" },
+    { id: "m4", name: "Module 4: Double Int", prompt: "Double integration" },
+    { id: "m5", name: "Module 5: Triple Int", prompt: "Triple integration" },
+    { id: "m6", name: "Module 6: Numerical", prompt: "Runge-Kutta" }
+];
+
+const SYLLABUS_PHYSICS = [
+    { id: "p1", name: "Module 1: Semiconductors", prompt: "Basics of Semiconductors, Fermi Dirac, Hall Effect" },
+    { id: "p2", name: "Module 2: Junction Diodes", prompt: "PN Junction, Biasing, LED, Zener Diode" },
+    { id: "p3", name: "Module 3: Important Diodes", prompt: "Photo diode, Solar cell, Varactor diode, Gunn diode" },
+    { id: "p4", name: "Module 4: BJT", prompt: "Bipolar Junction Transistors, CE configurations" },
+    { id: "p5", name: "Module 5: FETs", prompt: "Field Effect Transistors, JFET, MOSFET" },
+    { id: "p6", name: "Module 6: Nano Tech", prompt: "Nanotechnology, Optical/Electrical properties" }
+];
 
 function App() {
   const [gameState, setGameState] = useState(() => localStorage.getItem("bs_room") ? 'lobby' : 'menu');
@@ -269,15 +288,13 @@ function App() {
   const setLimitAndOpenMenu = (limit) => { 
       setQuestionLimit(limit.toString()); 
       setMenuOpen(true); 
-      // 🟢 SCROLL FIX: Force viewport to top so menu isn't lost
-      window.scrollTo(0, 0);
+      if (document.activeElement) document.activeElement.blur();
   };
 
   const handleStart = () => {
       if (gameState === 'lobby' && selectedTopics.length === 0) return toast.error("Select at least 1 topic!");
       setGameState('loading');
       setMenuOpen(false); 
-      // 🟢 DEFAULT LIMIT FIX: Prevents NaN crashes
       const safeLimit = questionLimit.trim() === "" ? -1 : parseInt(questionLimit);
       socket.emit('start_quiz', { 
           roomCode, 
@@ -312,7 +329,12 @@ function App() {
   const getLetter = (i) => String.fromCharCode(65 + i);
   const getCorrectIndex = () => { if (!question || !roundResult) return -1; return roundResult.correctIndex; };
   const toggleTopic = (prompt) => { setSelectedTopics(prev => prev.includes(prompt) ? prev.filter(t => t !== prompt) : [...prev, prompt]); };
-  const toggleSubject = (sub) => { expandedSubject === sub ? setExpandedSubject(null) : setExpandedSubject(sub); };
+  
+  // 🟢 SAFE TOGGLE SUBJECT (Prevent Undefined)
+  const toggleSubject = (sub) => { 
+      if(expandedSubject === sub) { setExpandedSubject(null); }
+      else { setExpandedSubject(sub); }
+  };
 
   const downloadPDF = () => {
       if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save.");
@@ -364,8 +386,10 @@ function App() {
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
-        .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
+        
+        .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
+        
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
@@ -446,9 +470,9 @@ function App() {
              </button>
              {expandedSubject === 'math' && (
                  <div className="sub-list">
-                   {SYLLABUS["Applied Mathematics-II"].map(m => (
+                   {SYLLABUS_MATH.map(m => (
                       <div key={m.id} className="topic-row" onClick={() => toggleTopic(m.prompt)}>
-                         <input type="checkbox" checked={selectedTopics.includes(m.prompt)} onChange={()=>{}} />
+                         <input type="checkbox" readOnly checked={selectedTopics.includes(m.prompt)} />
                          <span>{m.name}</span>
                       </div>
                    ))}
@@ -459,9 +483,9 @@ function App() {
              </button>
              {expandedSubject === 'physics' && (
                  <div className="sub-list">
-                   {SYLLABUS["Engineering Physics-II"].map(m => (
+                   {SYLLABUS_PHYSICS.map(m => (
                       <div key={m.id} className="topic-row" onClick={() => toggleTopic(m.prompt)}>
-                         <input type="checkbox" checked={selectedTopics.includes(m.prompt)} onChange={()=>{}} />
+                         <input type="checkbox" readOnly checked={selectedTopics.includes(m.prompt)} />
                          <span>{m.name}</span>
                       </div>
                    ))}
@@ -559,7 +583,7 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                {/* 🟢 CUSTOM INPUT SAFEGUARD */}
+                {/* 🟢 BLANK SCREEN FIX: PREVENT DEFAULT */}
                 <input 
                     type="number" 
                     placeholder="Custom #" 
@@ -567,10 +591,9 @@ function App() {
                     onChange={(e) => setQuestionLimit(e.target.value)} 
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                            e.preventDefault(); // 🟢 PREVENT FORM RELOAD
+                            e.preventDefault(); 
+                            e.target.blur(); 
                             setMenuOpen(true);
-                            if (document.activeElement) document.activeElement.blur(); // 🟢 CLOSE KEYBOARD
-                            window.scrollTo(0, 0); // 🟢 RESET SCROLL POSITION
                         }
                     }} 
                     style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} 
@@ -608,14 +631,11 @@ function App() {
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             
-            {/* 🟢 SAFE QUESTION RENDER */}
-            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}>
-                <MathText text={question?.question || "Loading Question..."} />
-            </h3>
+            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question.question} /></h3>
 
             {gameState === 'playing' && (
               <div className="grid">
-                {question?.options?.map((opt, i) => (
+                {question.options.map((opt, i) => (
                   <button key={i} className={`option-btn ${selectedOptionIndex === i ? 'selected' : ''}`} onClick={() => handleAnswer(opt, i)} disabled={selectedOptionIndex !== null}>
                     <div className="option-badge">{getLetter(i)}</div>
                     <div style={{flex:1, overflow:'hidden', fontSize: '1.1em'}}><MathText text={opt} /></div>
