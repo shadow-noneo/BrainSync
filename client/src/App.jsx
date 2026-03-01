@@ -111,6 +111,7 @@ function App() {
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
   
+  // Recorder State
   const [recState, setRecState] = useState('idle'); 
   const [recTime, setRecTime] = useState(0);
   const [recStartTime, setRecStartTime] = useState(0);
@@ -126,7 +127,7 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   
-  // 🟢 NEW PROGRESS STATE
+  // 🟢 PROGRESS STATE
   const [studentProgress, setStudentProgress] = useState({ submitted: 0, total: 0 });
   
   const mediaRecorderRef = useRef(null);
@@ -172,8 +173,6 @@ function App() {
     socket.on('unlock_host', () => { if(!canMoveOn) toast.success("Unlocked! 🔓"); setCanMoveOn(true); });
     socket.on('timer_update', (t) => setTimer(t));
     socket.on('update_scores', (s) => setScores(s));
-    
-    // 🟢 LISTENING FOR PROGRESS
     socket.on('progress_update', (data) => { setStudentProgress(data); });
     
     socket.on('round_result', (data) => { 
@@ -557,14 +556,7 @@ function App() {
                         {chatInput.trim() !== "" ? (
                             <button className="send-btn" onClick={sendMessage}>↑</button>
                         ) : (
-                            <button 
-                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
-                                onMouseDown={startRecording}
-                                onMouseUp={stopRecordingAndSend}
-                                onMouseLeave={stopRecordingAndSend}
-                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
-                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
-                            >
+                            <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onMouseDown={startRecording} onMouseUp={stopRecordingAndSend} onMouseLeave={stopRecordingAndSend} onTouchStart={(e) => { e.preventDefault(); startRecording(); }} onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}>
                                 🎙️
                             </button>
                         )}
@@ -707,8 +699,19 @@ function App() {
               <div className="host-controls">
                 <button onClick={navPrev} style={{background:'#2c2c2e', border:'none', color:'white', padding:'10px 20px', borderRadius:10}}>⬅ Prev</button>
                 <button onClick={() => socket.emit('host_action', {roomCode, action:'add'})} style={{background:'#2c2c2e', border:'none', color:'#FFD60A', padding:'10px 20px', borderRadius:10}}>+60s</button>
-                <button onClick={() => handleSmartNext()} disabled={!canMoveOn && !isHistoryMode} style={{background: canMoveOn || isHistoryMode ? '#0A84FF' : '#444', border:'none', color: canMoveOn || isHistoryMode ? 'white' : '#888', padding:'10px 20px', borderRadius:10, marginLeft:10, cursor: canMoveOn || isHistoryMode ? 'pointer' : 'not-allowed', fontWeight: 'bold'}}>
-                    {isHistoryMode ? "Next (Rev) ➡" : (canMoveOn ? "Next ➡" : "Locked 🔒")}
+                {/* 🟢 STRICT LOCK BUTTON: Disabled until Everyone Answers */}
+                <button 
+                    onClick={() => handleSmartNext()} 
+                    disabled={!isHistoryMode && studentProgress.submitted < studentProgress.total} 
+                    style={{
+                        background: (isHistoryMode || studentProgress.submitted === studentProgress.total) ? '#0A84FF' : '#444', 
+                        border:'none', 
+                        color: (isHistoryMode || studentProgress.submitted === studentProgress.total) ? 'white' : '#888', 
+                        padding:'10px 20px', borderRadius:10, marginLeft:10, cursor: (isHistoryMode || studentProgress.submitted === studentProgress.total) ? 'pointer' : 'not-allowed', 
+                        fontWeight: 'bold'
+                    }}
+                >
+                    {isHistoryMode ? "Next (Rev) ➡" : (studentProgress.submitted < studentProgress.total ? `Wait (${studentProgress.submitted}/${studentProgress.total}) 🔒` : "Next ➡")}
                 </button>
               </div>
             )}
