@@ -40,25 +40,6 @@ const MathText = ({ text }) => {
   );
 };
 
-const SYLLABUS = {
-  "Applied Mathematics-II": [
-    { id: "m1", name: "Module 1: Diff Eq", prompt: "Exact differential Equations" },
-    { id: "m2", name: "Module 2: LDE", prompt: "Linear Differential Equation" },
-    { id: "m3", name: "Module 3: Beta Gamma", prompt: "Beta and Gamma functions" },
-    { id: "m4", name: "Module 4: Double Int", prompt: "Double integration" },
-    { id: "m5", name: "Module 5: Triple Int", prompt: "Triple integration" },
-    { id: "m6", name: "Module 6: Numerical", prompt: "Runge-Kutta" }
-  ],
-  "Engineering Physics-II": [
-    { id: "p1", name: "Module 1: Semiconductors", prompt: "Basics of Semiconductors, Fermi Dirac, Hall Effect" },
-    { id: "p2", name: "Module 2: Junction Diodes", prompt: "PN Junction, Biasing, LED, Zener Diode" },
-    { id: "p3", name: "Module 3: Important Diodes", prompt: "Photo diode, Solar cell, Varactor diode, Gunn diode" },
-    { id: "p4", name: "Module 4: BJT", prompt: "Bipolar Junction Transistors, CE configurations" },
-    { id: "p5", name: "Module 5: FETs", prompt: "Field Effect Transistors, JFET, MOSFET" },
-    { id: "p6", name: "Module 6: Nano Tech", prompt: "Nanotechnology, Optical/Electrical properties" }
-  ]
-};
-
 const compressImage = (file, callback) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -96,10 +77,9 @@ function App() {
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
   
-  // 🟢 RECORDER STATE
   const [recState, setRecState] = useState('idle'); 
   const [recTime, setRecTime] = useState(0);
-  const [recStartTime, setRecStartTime] = useState(0); // To track tap vs hold
+  const [recStartTime, setRecStartTime] = useState(0);
   
   const [selectedTopics, setSelectedTopics] = useState([]); 
   const [questionLimit, setQuestionLimit] = useState(""); 
@@ -112,8 +92,10 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   
   const [profileOpen, setProfileOpen] = useState(false);
-  const [isListeningAI, setIsListeningAI] = useState(false);
-  const [aiSpeaking, setAiSpeaking] = useState(false);
+  
+  // 🟢 NEW AI VOICE STATES
+  const [aiState, setAiState] = useState('idle'); // 'idle', 'listening', 'thinking', 'speaking'
+  const recognitionRef = useRef(null);
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -153,7 +135,7 @@ function App() {
       setHistoryLength(prev => prev + 1);
       setHistoryIndex(prev => prev + 1);
       window.speechSynthesis.cancel();
-      setAiSpeaking(false);
+      setAiState('idle'); // Reset AI on new question
     });
 
     socket.on('lock_host', () => setCanMoveOn(false));
@@ -167,7 +149,12 @@ function App() {
         if(data.isReview) setIsHistoryMode(true); 
     });
     
-    socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 AI Answered", { icon: '🤫' }); });
+    // 🟢 AI REPLY HANDLER
+    socket.on('ai_voice_reply', ({ text }) => { 
+        setAiState('speaking'); 
+        speakText(text); 
+    });
+
     socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
     socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
 
@@ -194,26 +181,66 @@ function App() {
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
   
+  // 🟢 IMPROVED TEXT-TO-SPEECH
   const speakText = (text) => {
     window.speechSynthesis.cancel();
-    setAiSpeaking(true);
     const u = new SpeechSynthesisUtterance(text);
-    u.onend = () => setAiSpeaking(false);
+    u.rate = 1.1; // Slightly faster natural speed
+    u.pitch = 1.0;
+    u.onend = () => setAiState('idle');
     window.speechSynthesis.speak(u);
   };
 
+  // 🟢 NEW "BRAINSYNC WAVE" AI CONTROLLER
   const toggleAI = () => {
-    if (aiSpeaking) { window.speechSynthesis.cancel(); setAiSpeaking(false); setIsListeningAI(false); return; }
+    // Case 1: If Speaking -> STOP
+    if (aiState === 'speaking' || aiState === 'thinking') {
+        window.speechSynthesis.cancel();
+        if (recognitionRef.current) recognitionRef.current.stop();
+        setAiState('idle');
+        return;
+    }
+
+    // Case 2: If Listening -> STOP
+    if (aiState === 'listening') {
+        if (recognitionRef.current) recognitionRef.current.stop();
+        setAiState('idle');
+        return;
+    }
+
+    // Case 3: If Idle -> START LISTENING
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return toast.error("Use Chrome");
+    if (!SpeechRecognition) return toast.error("Use Chrome for AI Voice");
+    
     const r = new SpeechRecognition();
     r.lang = 'en-US';
-    setIsListeningAI(true);
-    r.onresult = (e) => { setIsListeningAI(false); toast("Thinking... 🤖"); socket.emit('ask_ai', { roomCode, userQuery: e.results[0][0].transcript }); };
+    r.continuous = false;
+    r.interimResults = false;
+
+    r.onstart = () => {
+        setAiState('listening');
+    };
+
+    r.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        setAiState('thinking'); // Transition to thinking animation
+        socket.emit('ask_ai', { roomCode, userQuery: transcript }); 
+    };
+
+    r.onerror = (e) => {
+        setAiState('idle');
+        toast.error("Did not hear you.");
+    };
+    
+    r.onend = () => {
+        // If we finished listening but haven't sent a query yet (handled in onresult), reset.
+        if (aiState === 'listening') setAiState('thinking');
+    };
+
+    recognitionRef.current = r;
     r.start();
   };
 
-  // 🟢 TAP TO TALK / HOLD TO RECORD LOGIC
   const startRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -231,7 +258,7 @@ function App() {
         mediaRecorderRef.current.start();
         setRecState('holding');
         setRecTime(0);
-        setRecStartTime(Date.now()); // Record start time
+        setRecStartTime(Date.now());
         
         if (recTimerRef.current) clearInterval(recTimerRef.current);
         recTimerRef.current = setInterval(() => setRecTime(t => t + 1), 1000);
@@ -242,8 +269,7 @@ function App() {
   };
 
   const stopRecordingAndSend = () => {
-      // 🟢 IF TAP (< 500ms), LOCK INSTEAD OF SEND
-      if (Date.now() - recStartTime < 500 && recState === 'holding') {
+      if (Date.now() - recStartTime < 300 && recState === 'holding') {
           setRecState('locked');
           return;
       }
@@ -267,12 +293,10 @@ function App() {
   const cancelRecording = () => {
       if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
       resetRecUI();
-      toast("Recording Cancelled 🗑️");
+      toast("Discarded 🗑️");
   };
 
-  const lockRecording = () => {
-      setRecState('locked');
-  };
+  const lockRecording = () => { setRecState('locked'); };
 
   const resetRecUI = () => {
       setRecState('idle');
@@ -283,15 +307,8 @@ function App() {
   const handleTouchMove = (e) => {
       if (recState !== 'holding') return;
       const touch = e.touches[0];
-      
-      // Slide up to lock
-      if (touch.clientY < window.innerHeight - 150) {
-          lockRecording();
-      }
-      // Slide left to cancel
-      if (touch.clientX < window.innerWidth / 2) {
-          cancelRecording();
-      }
+      if (touch.clientY < window.innerHeight - 150) lockRecording();
+      if (touch.clientX < window.innerWidth / 2) cancelRecording();
   };
 
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
@@ -307,7 +324,7 @@ function App() {
   
   const handleSmartNext = () => {
       window.speechSynthesis.cancel();
-      setAiSpeaking(false);
+      setAiState('idle');
       if (isHistoryMode && historyIndex < historyLength - 1) {
           socket.emit('nav_next', { roomCode });
           setHistoryIndex(prev => prev + 1);
@@ -407,10 +424,8 @@ function App() {
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
-        
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100%; background: #1c1c1e; padding: 20px; z-index: 10001; border-right: 1px solid #333; overflow-y: auto; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
-        
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
@@ -420,21 +435,43 @@ function App() {
         .msg-bubble.mine .msg-user { text-align: right; }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 5px; cursor: pointer; }
         .msg-audio { width: 100%; max-width: 220px; height: 35px; margin-top: 5px; border-radius: 20px; outline: none; }
-        
         .chat-input-area { padding: 10px 15px; display: flex; gap: 10px; align-items: center; min-height: 60px; position: relative; }
         
-        /* 🟢 WHATSAPP LOCKED MODE */
-        .rec-locked-container { display: flex; align-items: center; width: 100%; justify-content: space-between; padding: 0 10px; position: relative; height: 100%; }
-        .rec-timer-locked { position: absolute; top: -30px; left: 15px; font-size: 14px; color: white; font-family: monospace; font-weight: bold; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
+        .rec-locked-container { display: flex; align-items: center; width: 100%; justify-content: space-between; padding: 5px 15px; background: rgba(10, 132, 255, 0.1); border-radius: 30px; border: 1px solid #0A84FF; animation: glow 2s infinite; }
+        .rec-timer-container { display: flex; align-items: center; gap: 10px; color: white; font-family: monospace; font-size: 16px; font-weight: bold; }
+        .rec-wave { display: flex; align-items: center; gap: 3px; height: 20px; }
+        .rec-bar { width: 3px; background: #0A84FF; border-radius: 2px; animation: wave 1s ease-in-out infinite; }
+        .rec-bar:nth-child(1) { height: 10px; animation-delay: 0.0s; }
+        .rec-bar:nth-child(2) { height: 15px; animation-delay: 0.1s; }
+        .rec-bar:nth-child(3) { height: 20px; animation-delay: 0.2s; }
+        .rec-bar:nth-child(4) { height: 12px; animation-delay: 0.3s; }
+        .rec-bar:nth-child(5) { height: 18px; animation-delay: 0.4s; }
         
-        .slide-to-cancel { position: absolute; left: 50px; color: #888; font-size: 14px; animation: slideHint 1.5s infinite; pointer-events: none; }
-        .mic-btn-hold { background: #25D366; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: 0.2s; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); transform: scale(1.2); }
-        .mic-btn { background: #25D366; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.2s; }
-        .lock-hint { position: absolute; bottom: 80px; right: 20px; background: #333; padding: 8px; border-radius: 20px; color: white; animation: slideUp 0.5s ease-out; }
+        .mic-btn-hold { background: linear-gradient(135deg, #0A84FF, #5E5CE6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: 0.2s; box-shadow: 0 0 20px rgba(10, 132, 255, 0.6); transform: scale(1.1); }
+        .mic-btn { background: transparent; color: #0A84FF; border: 2px solid #0A84FF; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: 0.2s; }
+        .mic-btn:hover { background: rgba(10, 132, 255, 0.1); }
         
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        @keyframes slideHint { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-20px); opacity: 0; } }
-        @keyframes slideUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        @keyframes wave { 0%, 100% { height: 5px; } 50% { height: 20px; } }
+        @keyframes glow { 0% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } 50% { box-shadow: 0 0 15px rgba(10, 132, 255, 0.5); } 100% { box-shadow: 0 0 5px rgba(10, 132, 255, 0.2); } }
+
+        /* 🟢 NEW AI BUTTON STYLES */
+        .ai-btn { background: #333; color: white; border: 1px solid #555; border-radius: 25px; padding: 8px 16px; display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; overflow: hidden; position: relative; }
+        .ai-btn.listening { background: #1a472a; border-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        .ai-btn.speaking { background: #4a2c4a; border-color: #e056fd; box-shadow: 0 0 10px #e056fd; }
+        .ai-btn.thinking { background: #4a3b1a; border-color: #f1c40f; animation: pulse-border 1.5s infinite; }
+        
+        .ai-wave-container { display: flex; align-items: center; gap: 2px; height: 15px; margin-left: 5px; }
+        .ai-bar { width: 3px; background: white; border-radius: 2px; animation: quiet 1s infinite; }
+        .ai-btn.listening .ai-bar { background: #2ecc71; animation: active-wave 0.5s infinite alternate; }
+        .ai-btn.speaking .ai-bar { background: #e056fd; animation: active-wave 0.3s infinite alternate; }
+        
+        .ai-bar:nth-child(1) { animation-delay: 0.0s; }
+        .ai-bar:nth-child(2) { animation-delay: 0.1s; }
+        .ai-bar:nth-child(3) { animation-delay: 0.2s; }
+        
+        @keyframes active-wave { 0% { height: 3px; } 100% { height: 15px; } }
+        @keyframes quiet { 0% { height: 3px; opacity: 0.5; } 100% { height: 3px; opacity: 0.5; } }
+        @keyframes pulse-border { 0% { border-color: #555; } 50% { border-color: #f1c40f; } 100% { border-color: #555; } }
 
         .cam-popup { position: absolute; bottom: 80px; left: 15px; background: rgba(44, 44, 46, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 5px; z-index: 10002; }
         .cam-popup button { background: transparent; color: white; border: none; padding: 10px 15px; text-align: left; cursor: pointer; border-radius: 8px; }
@@ -448,13 +485,7 @@ function App() {
         @keyframes galaxy { 100% { transform: rotate(360deg); } }
         .galaxy-ring { width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0A84FF, #FF3B30, #FFD60A, #34C759, #0A84FF); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0); animation: galaxy 1s linear infinite; margin: 20px auto; }
         
-        @media (max-width: 600px) { 
-            .chat-sidebar { width: 100%; } 
-            .grid { grid-template-columns: 1fr; } 
-            .menu-btn { top: 15px; left: 15px; font-size: 14px; padding: 6px 12px; }
-            .profile-btn { top: 15px; right: 15px; width: 35px; height: 35px; padding: 6px; }
-            .chat-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 22px; }
-        }
+        @media (max-width: 600px) { .chat-sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } }
       `}</style>
 
       {gameState !== 'menu' && !menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
@@ -534,12 +565,19 @@ function App() {
              
              <div className="chat-input-area" onTouchMove={handleTouchMove}>
                 {recState === 'locked' ? (
-                    // 🟢 LOCKED MODE UI: Exact match to your screenshot
                     <div className="rec-locked-container">
-                        <div className="rec-timer-locked">{formatRecTime(recTime)}</div>
-                        <button onClick={cancelRecording} style={{background:'none', border:'none', fontSize:'24px'}}>🗑️</button>
-                        <div style={{color:'#FF3B30', fontSize:'24px', fontWeight:'bold', letterSpacing:'-2px'}}>||</div>
-                        <button onClick={stopRecordingAndSend} className="send-btn" style={{background:'#25D366', borderRadius:'50%', width:'45px', height:'45px'}}>➤</button>
+                        <button onClick={cancelRecording} style={{background:'none', border:'none', color:'#FF3B30', fontSize:'20px'}}>❌</button>
+                        <div className="rec-timer-container">
+                            <div className="rec-wave">
+                                <div className="rec-bar"></div>
+                                <div className="rec-bar"></div>
+                                <div className="rec-bar"></div>
+                                <div className="rec-bar"></div>
+                                <div className="rec-bar"></div>
+                            </div>
+                            <span>{formatRecTime(recTime)}</span>
+                        </div>
+                        <button onClick={stopRecordingAndSend} className="send-btn" style={{background:'#0A84FF', borderRadius:'50%', width:'40px', height:'40px'}}>➤</button>
                     </div>
                 ) : (
                     <>
@@ -559,10 +597,6 @@ function App() {
                             </>
                         ) : (
                             <div style={{flex:1, color:'#888', paddingLeft:10}} className="slide-to-cancel">Slide to cancel &lt;</div>
-                        )}
-
-                        {recState === 'holding' && (
-                            <div className="lock-hint">🔒 Slide up to lock</div>
                         )}
 
                         {chatInput.trim() !== "" ? (
@@ -643,11 +677,25 @@ function App() {
             <div className="header-row">
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
-                <div style={{display:'flex', gap:5}}>
-                  <button onClick={toggleAI} style={{background: isListeningAI ? '#FF3B30' : (aiSpeaking ? '#FFD60A' : '#2c2c2e'), color: aiSpeaking ? 'black' : 'white', border:'1px solid #444', borderRadius:'20px', padding:'8px 14px', fontWeight: 500}}>
-                    {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask AI")}
-                  </button>
-                </div>
+                
+                {/* 🟢 NEW "BRAINSYNC LIVE WAVE" AI BUTTON */}
+                <button 
+                    onClick={toggleAI} 
+                    className={`ai-btn ${aiState}`}
+                >
+                    {aiState === 'idle' && <span>🤖 Ask AI</span>}
+                    {aiState === 'listening' && <span>👂 Listening</span>}
+                    {aiState === 'thinking' && <span>🧠 Thinking...</span>}
+                    {aiState === 'speaking' && <span>🔊 Speaking</span>}
+                    
+                    {aiState !== 'idle' && (
+                        <div className="ai-wave-container">
+                            <div className="ai-bar"></div>
+                            <div className="ai-bar"></div>
+                            <div className="ai-bar"></div>
+                        </div>
+                    )}
+                </button>
             </div>
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
