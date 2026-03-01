@@ -14,11 +14,12 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 NUCLEAR MATH REPAIR
+// 🟢 NUCLEAR MATH REPAIR (Now catches the 'f\frac' bug)
 const MathText = ({ text }) => {
   if (!text) return null;
   try {
       let cleanText = String(text)
+         .replace(/f\\frac/g, '\\frac') // 🟢 Fixes the "Yellow Error" f\frac
          .replace(/\\f/g, 'f') 
          .replace(/\f/g, '')
          .replace(/rac\{/g, '\\frac{')
@@ -74,7 +75,6 @@ const compressImage = (file, callback) => {
     }
 };
 
-// 🟢 HARDCODED SYLLABUS
 const SYLLABUS_MATH = [
     { id: "m1", name: "Module 1: Diff Eq", prompt: "Exact differential Equations" },
     { id: "m2", name: "Module 2: LDE", prompt: "Linear Differential Equation" },
@@ -111,7 +111,6 @@ function App() {
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
   
-  // Recorder State
   const [recState, setRecState] = useState('idle'); 
   const [recTime, setRecTime] = useState(0);
   const [recStartTime, setRecStartTime] = useState(0);
@@ -127,7 +126,7 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   
-  // 🟢 PROGRESS STATE
+  // 🟢 HOST LOCK STATE
   const [studentProgress, setStudentProgress] = useState({ submitted: 0, total: 0 });
   
   const mediaRecorderRef = useRef(null);
@@ -173,6 +172,8 @@ function App() {
     socket.on('unlock_host', () => { if(!canMoveOn) toast.success("Unlocked! 🔓"); setCanMoveOn(true); });
     socket.on('timer_update', (t) => setTimer(t));
     socket.on('update_scores', (s) => setScores(s));
+    
+    // 🟢 UPDATE PROGRESS BAR
     socket.on('progress_update', (data) => { setStudentProgress(data); });
     
     socket.on('round_result', (data) => { 
@@ -333,7 +334,6 @@ function App() {
   const getLetter = (i) => String.fromCharCode(65 + i);
   const getCorrectIndex = () => { if (!question || !roundResult) return -1; return roundResult.correctIndex; };
   const toggleTopic = (prompt) => { setSelectedTopics(prev => prev.includes(prompt) ? prev.filter(t => t !== prompt) : [...prev, prompt]); };
-  
   const toggleSubject = (sub) => { 
       if(expandedSubject === sub) { setExpandedSubject(null); }
       else { setExpandedSubject(sub); }
@@ -390,11 +390,9 @@ function App() {
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
         
-        /* 🟢 MOBILE KEYBOARD FIX */
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         
-        /* 🟢 SCROLLABLE SOLUTION BOX */
         .explanation-box { max-height: 250px; overflow-y: auto; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-top: 15px; border: 1px solid rgba(255,255,255,0.1); }
         .explanation-box::-webkit-scrollbar { width: 8px; }
         .explanation-box::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
@@ -556,7 +554,14 @@ function App() {
                         {chatInput.trim() !== "" ? (
                             <button className="send-btn" onClick={sendMessage}>↑</button>
                         ) : (
-                            <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onMouseDown={startRecording} onMouseUp={stopRecordingAndSend} onMouseLeave={stopRecordingAndSend} onTouchStart={(e) => { e.preventDefault(); startRecording(); }} onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}>
+                            <button 
+                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
+                                onMouseDown={startRecording}
+                                onMouseUp={stopRecordingAndSend}
+                                onMouseLeave={stopRecordingAndSend}
+                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
+                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
+                            >
                                 🎙️
                             </button>
                         )}
@@ -699,6 +704,7 @@ function App() {
               <div className="host-controls">
                 <button onClick={navPrev} style={{background:'#2c2c2e', border:'none', color:'white', padding:'10px 20px', borderRadius:10}}>⬅ Prev</button>
                 <button onClick={() => socket.emit('host_action', {roomCode, action:'add'})} style={{background:'#2c2c2e', border:'none', color:'#FFD60A', padding:'10px 20px', borderRadius:10}}>+60s</button>
+                
                 {/* 🟢 STRICT LOCK BUTTON: Disabled until Everyone Answers */}
                 <button 
                     onClick={() => handleSmartNext()} 
