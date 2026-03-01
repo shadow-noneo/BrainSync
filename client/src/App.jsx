@@ -14,41 +14,45 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 NUCLEAR MATH REPAIR
+// 🟢 SAFE MATH COMPONENT (Prevents React Crashes)
 const MathText = ({ text }) => {
   if (!text) return null;
-  let cleanText = String(text)
-     .replace(/\\f/g, 'f') 
-     .replace(/\f/g, '')
-     .replace(/rac\{/g, '\\frac{')
-     .replace(/\\rac\{/g, '\\frac{') 
-     .replace(/ight/g, '\\right')
-     .replace(/eft/g, '\\left')
-     .replace(/int/g, '\\int')
-     .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
-     .replace(/\\\[/g, '$').replace(/\\\]/g, '$')
-     .replace(/\$\$/g, '$');
-     
-  const parts = cleanText.split('$');
-  return (
-    <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
-      {parts.map((p, i) => {
-        if (!p) return null;
-        if (i % 2 === 1) {
-          return (
-            <span key={i}>
-                <InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} />
-            </span>
-          );
-        } else {
-          if (/[\\]|[\^]|[_]/.test(p) || p.includes('frac')) {
-              return <InlineMath key={i} math={p} renderError={() => <span>{p}</span>} />;
-          }
-          return <span key={i}>{p}</span>;
-        }
-      })}
-    </span>
-  );
+  try {
+      let cleanText = String(text)
+         .replace(/\\f/g, 'f') 
+         .replace(/\f/g, '')
+         .replace(/rac\{/g, '\\frac{')
+         .replace(/\\rac\{/g, '\\frac{') 
+         .replace(/ight/g, '\\right')
+         .replace(/eft/g, '\\left')
+         .replace(/int/g, '\\int')
+         .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
+         .replace(/\\\[/g, '$').replace(/\\\]/g, '$')
+         .replace(/\$\$/g, '$');
+         
+      const parts = cleanText.split('$');
+      return (
+        <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
+          {parts.map((p, i) => {
+            if (!p) return null;
+            if (i % 2 === 1) {
+              return (
+                <span key={i}>
+                    <InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} />
+                </span>
+              );
+            } else {
+              if (/[\\]|[\^]|[_]/.test(p) || p.includes('frac')) {
+                  return <InlineMath key={i} math={p} renderError={() => <span>{p}</span>} />;
+              }
+              return <span key={i}>{p}</span>;
+            }
+          })}
+        </span>
+      );
+  } catch (e) {
+      return <span>{text}</span>; // Fallback to raw text if it crashes
+  }
 };
 
 const compressImage = (file, callback) => {
@@ -101,6 +105,7 @@ function App() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [historyLength, setHistoryLength] = useState(0);
   const [canMoveOn, setCanMoveOn] = useState(false);
+  
   const [profileOpen, setProfileOpen] = useState(false);
   
   const mediaRecorderRef = useRef(null);
@@ -264,19 +269,21 @@ function App() {
   const setLimitAndOpenMenu = (limit) => { 
       setQuestionLimit(limit.toString()); 
       setMenuOpen(true); 
-      // 🟢 PREVENT KEYBOARD GLITCH
-      if (document.activeElement) document.activeElement.blur();
+      // 🟢 SCROLL FIX: Force viewport to top so menu isn't lost
+      window.scrollTo(0, 0);
   };
 
   const handleStart = () => {
       if (gameState === 'lobby' && selectedTopics.length === 0) return toast.error("Select at least 1 topic!");
       setGameState('loading');
       setMenuOpen(false); 
+      // 🟢 DEFAULT LIMIT FIX: Prevents NaN crashes
+      const safeLimit = questionLimit.trim() === "" ? -1 : parseInt(questionLimit);
       socket.emit('start_quiz', { 
           roomCode, 
           subject: expandedSubject === 'physics' ? "Engineering Physics-II" : "Applied Mathematics-II", 
           topics: selectedTopics, 
-          limit: questionLimit.trim() === "" ? -1 : parseInt(questionLimit),
+          limit: isNaN(safeLimit) ? 10 : safeLimit,
           forceNew: true 
       });
   };
@@ -357,11 +364,8 @@ function App() {
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 70px; right: 20px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
-        
-        /* 🟢 MOBILE KEYBOARD FIX: Sidebar uses dynamic viewport height */
         .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
-        
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
@@ -555,7 +559,7 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                {/* 🟢 MOBILE KEYBOARD FIX */}
+                {/* 🟢 CUSTOM INPUT SAFEGUARD */}
                 <input 
                     type="number" 
                     placeholder="Custom #" 
@@ -563,9 +567,10 @@ function App() {
                     onChange={(e) => setQuestionLimit(e.target.value)} 
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                            e.preventDefault(); // 🟢 PREVENT RELOAD/SUBMIT
-                            e.target.blur(); // 🟢 CLOSE KEYBOARD
+                            e.preventDefault(); // 🟢 PREVENT FORM RELOAD
                             setMenuOpen(true);
+                            if (document.activeElement) document.activeElement.blur(); // 🟢 CLOSE KEYBOARD
+                            window.scrollTo(0, 0); // 🟢 RESET SCROLL POSITION
                         }
                     }} 
                     style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} 
@@ -603,11 +608,14 @@ function App() {
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             
-            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question.question} /></h3>
+            {/* 🟢 SAFE QUESTION RENDER */}
+            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}>
+                <MathText text={question?.question || "Loading Question..."} />
+            </h3>
 
             {gameState === 'playing' && (
               <div className="grid">
-                {question.options.map((opt, i) => (
+                {question?.options?.map((opt, i) => (
                   <button key={i} className={`option-btn ${selectedOptionIndex === i ? 'selected' : ''}`} onClick={() => handleAnswer(opt, i)} disabled={selectedOptionIndex !== null}>
                     <div className="option-badge">{getLetter(i)}</div>
                     <div style={{flex:1, overflow:'hidden', fontSize: '1.1em'}}><MathText text={opt} /></div>
