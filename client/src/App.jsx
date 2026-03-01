@@ -162,7 +162,7 @@ function App() {
         if(data.isReview) setIsHistoryMode(true); 
     });
     
-    socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 AI Answered", { icon: '🤫' }); });
+    socket.on('ai_voice_reply', ({ text }) => { setIsListeningAI(false); speakText(text); toast("🤖 Tutor Answered", { icon: '🎓' }); });
     socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
     socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
 
@@ -356,10 +356,18 @@ function App() {
         .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .msg-bubble { background: #3a3a3c; padding: 10px 16px; border-radius: 18px; max-width: 80%; word-break: break-word; font-size: 15px; border-bottom-left-radius: 4px; }
-        .msg-bubble.mine { background: #0A84FF; align-self: flex-end; border-bottom-left-radius: 18px; border-bottom-right-radius: 4px; }
-        .msg-user { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
-        .msg-bubble.mine .msg-user { text-align: right; }
+        /* 🟢 WHATSAPP STYLE BUBBLES */
+        .msg-bubble { padding: 8px 12px; border-radius: 12px; max-width: 80%; word-break: break-word; font-size: 15px; margin-bottom: 5px; position: relative; }
+        .msg-bubble.mine { background: #075E54; align-self: flex-end; border-top-right-radius: 0; }
+        .msg-bubble:not(.mine) { background: #3a3a3c; align-self: flex-start; border-top-left-radius: 0; }
+        
+        /* 🟢 SENDER NAME STYLE */
+        .msg-name { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+        .msg-bubble:not(.mine) .msg-name { color: #34C759; } 
+        .msg-bubble.mine .msg-name { display: none; } /* Hide own name like WhatsApp */
+
+        .msg-info { font-size: 10px; color: rgba(255,255,255,0.6); text-align: right; margin-top: 4px; }
+        
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 5px; cursor: pointer; }
         .msg-audio { width: 100%; max-width: 220px; height: 35px; margin-top: 5px; border-radius: 20px; outline: none; }
         
@@ -371,20 +379,16 @@ function App() {
         .chat-input-field { flex: 1; padding: 10px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: #3a3a3c; color: white; font-size: 15px; outline: none; transition: 0.2s; }
         .send-btn { background: #0A84FF; border: none; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;}
         .mic-btn { background: transparent; border: none; color: #0A84FF; font-size: 22px; cursor: pointer; padding: 5px; transition: 0.2s; user-select: none; }
-        .mic-btn.recording { color: #FF3B30; transform: scale(1.2); }
+        
+        /* 🟢 PULSING RED MIC WHEN RECORDING */
+        .mic-btn.recording { color: #FF3B30; animation: pulse 1s infinite; transform: scale(1.3); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
         .topic-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #333; cursor: pointer; }
         .topic-row input { margin-right: 10px; width: 18px; height: 18px; accent-color: #0A84FF; }
         @keyframes galaxy { 100% { transform: rotate(360deg); } }
         .galaxy-ring { width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0A84FF, #FF3B30, #FFD60A, #34C759, #0A84FF); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0); animation: galaxy 1s linear infinite; margin: 20px auto; }
-        
-        /* 🟢 MOBILE ALIGNMENT FIXES */
-        @media (max-width: 600px) { 
-            .chat-sidebar { width: 100%; } 
-            .grid { grid-template-columns: 1fr; } 
-            .menu-btn { top: 15px; left: 15px; font-size: 14px; padding: 6px 12px; }
-            .profile-btn { top: 15px; right: 15px; width: 35px; height: 35px; padding: 6px; }
-            .chat-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 22px; }
-        }
+        @media (max-width: 600px) { .chat-sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } }
       `}</style>
 
       {gameState !== 'menu' && !menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
@@ -438,7 +442,6 @@ function App() {
                  </div>
              )}
           </div>
-          {/* 🟢 NEW DONE BUTTON FOR MOBILE */}
           <button onClick={() => setMenuOpen(false)} style={{width: '100%', padding: '12px', background: '#34C759', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '20px'}}>
              ✅ Done
           </button>
@@ -454,10 +457,12 @@ function App() {
              <div className="chat-messages">
                 {messages.map((m, i) => (
                    <div key={i} className={`msg-bubble ${m.username === username ? 'mine' : ''}`}>
-                      <div className="msg-user">{m.username} • {m.time}</div>
+                      {/* 🟢 NAME DISPLAY ONLY FOR OTHERS */}
+                      <div className="msg-name">{m.username}</div>
                       {m.text && <div>{m.text}</div>}
                       {m.image && <img src={m.image} className="msg-img" onClick={() => window.open(m.image)} />}
                       {m.audio && <audio src={m.audio} controls className="msg-audio" />}
+                      <div className="msg-info">{m.time}</div>
                    </div>
                 ))}
                 <div ref={messagesEndRef} />
@@ -490,7 +495,7 @@ function App() {
         {gameState === 'loading' && (
            <div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}>
              <div className="galaxy-ring"></div>
-             <h2>Generating Exam Question... ✨</h2>
+             <h2>Generating Professional Question... ✨</h2>
            </div>
         )}
         
@@ -511,7 +516,6 @@ function App() {
                 {[10, 15, 20].map(n => 
                     <button key={n} onClick={() => setLimitAndOpenMenu(n)} style={{background: questionLimit===n.toString()?'#0A84FF':'#2c2c2e', color:'white', border:'none', padding:'12px 20px', borderRadius:12, fontSize:16, flex:1}}>{n}</button>
                 )}
-                {/* 🟢 CUSTOM INPUT OPENS MENU ON ENTER */}
                 <input type="number" placeholder="Custom #" value={questionLimit} onChange={(e) => setQuestionLimit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setMenuOpen(true)} style={{background:'#2c2c2e', color:'white', border:'1px solid #444', padding:'12px', borderRadius:12, fontSize:16, width:100, textAlign:'center'}} />
              </div>
              <p>2. Select Topics from ☰ Menu.</p>
@@ -545,14 +549,22 @@ function App() {
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
                 <div style={{display:'flex', gap:5}}>
                   <button onClick={toggleAI} style={{background: isListeningAI ? '#FF3B30' : (aiSpeaking ? '#FFD60A' : '#2c2c2e'), color: aiSpeaking ? 'black' : 'white', border:'1px solid #444', borderRadius:'20px', padding:'8px 14px', fontWeight: 500}}>
-                    {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask AI")}
+                    {isListeningAI ? "🛑 Listening..." : (aiSpeaking ? "🔇 Stop AI" : "🤖 Ask Tutor")}
                   </button>
                 </div>
             </div>
 
             {question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             
-            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question.question} /></h3>
+            {/* 🟢 EXAM YEAR TAG - NOW RIGHT NEXT TO THE QUESTION */}
+            <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}>
+                <MathText text={question.question} />
+                {question.exam_year && (
+                    <span style={{fontSize: '0.6em', color: '#FFD60A', border: '1px solid #FFD60A', padding: '2px 8px', borderRadius: '12px', marginLeft: '10px', verticalAlign: 'middle', whiteSpace: 'nowrap'}}>
+                        {question.exam_year}
+                    </span>
+                )}
+            </h3>
 
             {gameState === 'playing' && (
               <div className="grid">
@@ -579,13 +591,11 @@ function App() {
                    <strong style={{color:'#34C759'}}>Correct Answer: Option {getLetter(getCorrectIndex())}</strong>
                    <div style={{marginTop:8, fontSize: '1.2em'}}><MathText text={roundResult.correctAnswer} /></div>
                 </div>
-                <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', marginTop:15, lineHeight: 1.6}}><MathText text={roundResult.explanation} /></div>
-                {/* 🟢 EXAM YEAR TAG */}
-                {question.exam_year && (
-                    <div style={{marginTop:15, textAlign:'center', fontSize: '0.9em', color: '#FFD60A', border: '1px solid #FFD60A', display: 'inline-block', padding: '4px 10px', borderRadius: '15px'}}>
-                        📚 Exam: {question.exam_year}
-                    </div>
-                )}
+                
+                {/* 🟢 SCROLLABLE SOLUTION BOX */}
+                <div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', marginTop:15, lineHeight: 1.6, maxHeight: '200px', overflowY: 'auto', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px'}}>
+                    <MathText text={roundResult.explanation} />
+                </div>
               </div>
             )}
 
