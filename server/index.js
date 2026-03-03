@@ -18,7 +18,7 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const rooms = {}; 
 
-console.log("🚀 SERVER v41.0 - SECURED");
+console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loaded" : "❌ MISSING"));
 
 function cleanLatex(str) {
     if (!str) return "";
