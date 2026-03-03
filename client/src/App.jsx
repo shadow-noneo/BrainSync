@@ -14,9 +14,32 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 MOCK AD COMPONENT (Replace src with real Google Ad later)
+// 🟢 1. YOUR REAL GOOGLE AD COMPONENT
+const GoogleAd = () => {
+    useEffect(() => {
+        try {
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+            console.error("AdSense Error:", e);
+        }
+    }, []);
+
+    return (
+        <div style={{ overflow: 'hidden', width: '100%', minHeight: '280px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '20px 0' }}>
+            {/* THIS IS YOUR EXACT AD UNIT CODE */}
+            <ins className="adsbygoogle"
+                 style={{ display: 'block', width: '100%', height: '100%' }}
+                 data-ad-client="ca-pub-4572026782484804" 
+                 data-ad-slot="2420129524" 
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+        </div>
+    );
+};
+
+// 🟢 2. AD OVERLAY
 const AdOverlay = ({ onFinish }) => {
-    const [timeLeft, setTimeLeft] = useState(15); // 15s for testing (Change to 30 later)
+    const [timeLeft, setTimeLeft] = useState(15); 
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -33,18 +56,19 @@ const AdOverlay = ({ onFinish }) => {
     }, []);
 
     return (
-        <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'black', zIndex:99999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'white'}}>
-            <h2 style={{color:'#FFD60A'}}>💰 SPONSORED BREAK 💰</h2>
+        <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'white', padding: '20px', boxSizing: 'border-box'}}>
+            <h2 style={{color:'#FFD60A', marginBottom: 10}}>💰 SPONSORED BREAK 💰</h2>
+            <p style={{color:'#aaa', marginBottom: 20}}>Please wait for the next question...</p>
             
-            {/* PLACEHOLDER FOR GOOGLE ADSENSE / ADMOB */}
-            <div style={{width:'300px', height:'250px', background:'#333', display:'flex', alignItems:'center', justifyContent:'center', margin:'20px', border:'2px dashed #555'}}>
-                <span>[ ADVERTISEMENT HERE ]</span>
+            {/* RENDER THE AD */}
+            <div style={{width: '100%', maxWidth: '500px'}}>
+                <GoogleAd />
             </div>
 
-            <div style={{fontSize:'20px', fontWeight:'bold'}}>
+            <div style={{fontSize:'20px', fontWeight:'bold', marginTop: 20}}>
                 Resuming in {timeLeft}s...
             </div>
-            {timeLeft === 0 && <button onClick={onFinish} style={{padding:'10px 20px', marginTop:20, background:'white', color:'black', border:'none', borderRadius:5}}>Skip ➤</button>}
+            {timeLeft === 0 && <button onClick={onFinish} style={{padding:'12px 30px', marginTop:20, background:'#34C759', color:'white', border:'none', borderRadius:12, fontSize: 18, fontWeight: 'bold', cursor: 'pointer'}}>Skip ➤</button>}
         </div>
     );
 };
@@ -199,8 +223,13 @@ function App() {
   };
 
   useEffect(() => {
-    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); }
+    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); unlockAudio(); }
   }, []);
+
+  const unlockAudio = () => {
+      if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+  };
 
   useEffect(() => {
     socket.on('set_role', ({ role }) => { 
@@ -208,19 +237,18 @@ function App() {
         if (gameState === 'menu') setGameState('lobby');
         localStorage.setItem("bs_room", roomCode);
         localStorage.setItem("bs_user", username);
+        unlockAudio();
     });
 
     socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
     
     socket.on('new_question', (data) => {
-      // 🟢 AD LOGIC TRIGGER
       const cleanData = sanitizeQuestionData(data);
       setQuestion(cleanData);
       
       setQuestionsAnsweredCount(prev => {
           const newCount = prev + 1;
-          // Trigger Ad every 5 questions (5, 10, 15...)
-          // BUT only for members, not the host
+          // Trigger Ad every 5 questions, but ONLY for members
           if (newCount > 1 && newCount % 5 === 1 && role === 'member') {
               setShowAd(true);
           }
@@ -268,6 +296,10 @@ function App() {
     return () => { socket.off(); document.removeEventListener("visibilitychange", handleVisibilityChange); };
   }, [gameState, role, roomCode, username, chatOpen, canMoveOn]);
 
+  useEffect(() => { 
+      if (messagesEndRef.current) { messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }
+  }, [messages, chatOpen]);
+
   const handleAnswer = (opt, index) => { setSelectedOptionIndex(index); socket.emit('submit_answer', { roomCode, answerIndex: index, username }); };
   const navPrev = () => { socket.emit('nav_prev', { roomCode }); setHistoryIndex(prev => Math.max(0, prev - 1)); };
   
@@ -280,7 +312,6 @@ function App() {
       }
   };
   
-  // ... (Rest of standard functions like recording, image upload, logout remain same) ...
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
   const joinRoom = () => { if (username && roomCode) { setQuizHistory([]); socket.emit('join_room', { roomCode, username }); } else toast.error("Enter Details"); };
   const setLimitAndOpenMenu = (limit) => { setQuestionLimit(limit.toString()); setMenuOpen(true); if (document.activeElement) document.activeElement.blur(); };
@@ -309,7 +340,6 @@ function App() {
   return (
     <div className="app-container">
       <Toaster position="top-center" />
-      {/* 🟢 AD OVERLAY */}
       {showAd && <AdOverlay onFinish={() => setShowAd(false)} />}
       
       <style>{`
@@ -330,7 +360,6 @@ function App() {
         .selected .option-badge { background: white; color: #0A84FF; }
         .marks-badge { background: #FFD60A; color: black; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
         .host-controls { display: flex; gap: 10px; margin-top: 15px; justify-content: center; padding-top:15px; border-top:1px solid #333; }
-        
         .menu-btn { position: fixed; top: 15px; left: 15px; font-size: 16px; background: rgba(44, 44, 46, 0.8); backdrop-filter: blur(10px); border: 1px solid #444; color: white; padding: 8px 14px; border-radius: 12px; z-index: 20000; font-weight: 500; }
         .profile-btn { position: fixed; top: 15px; right: 15px; font-size: 20px; background: rgba(44, 44, 46, 0.8); backdrop-filter: blur(10px); border: 1px solid #444; color: white; padding: 8px; border-radius: 50%; width: 45px; height: 45px; z-index: 20000; cursor: pointer; display:flex; align-items:center; justify-content:center; }
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
@@ -414,11 +443,69 @@ function App() {
         </div>
       )}
 
-      {/* CHAT SIDEBAR AND MAIN CONTENT SAME AS BEFORE BUT INTEGRATED WITH AD LOGIC */}
-      {/* (Shortened for brevity, use previous blocks for Chat/Main UI if needed, but above block contains the logic) */}
-      {/* ... [Chat Component Logic Here] ... */}
-      
-      {/* MAIN GAME UI WITH AD LOGIC WRAPPED */}
+      {/* CHAT SIDEBAR AND MAIN CONTENT */}
+      {chatOpen && (
+          <div className="chat-sidebar">
+             <div className="chat-header">
+                <h3 style={{margin: 0}}>Group Chat</h3>
+                <button onClick={() => setChatOpen(false)} style={{background:'none', border:'none', color:'#0A84FF', fontSize:28, cursor:'pointer'}}>×</button>
+             </div>
+             <div className="chat-messages">
+                {messages.map((m, i) => (
+                   <div key={i} className={`msg-bubble ${m.username === username ? 'mine' : ''}`}>
+                      <div className="msg-user">{m.username} • {m.time}</div>
+                      {m.text && <div>{m.text}</div>}
+                      {m.image && <img src={m.image} className="msg-img" onClick={() => window.open(m.image)} />}
+                      {m.audio && <audio src={m.audio} controls className="msg-audio" />}
+                   </div>
+                ))}
+                <div ref={messagesEndRef} />
+             </div>
+             <div className="chat-input-area" onTouchMove={handleTouchMove}>
+                {recState === 'locked' ? (
+                    <div className="rec-locked-container">
+                        <button onClick={cancelRecording} style={{background:'none', border:'none', color:'#FF3B30', fontSize:'20px'}}>❌</button>
+                        <div className="rec-timer-container">
+                            <div className="rec-wave">
+                                <div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div>
+                            </div>
+                            <span>{formatRecTime(recTime)}</span>
+                        </div>
+                        <button onClick={stopRecordingAndSend} className="send-btn" style={{background:'#0A84FF', borderRadius:'50%', width:'40px', height:'40px'}}>➤</button>
+                    </div>
+                ) : (
+                    <>
+                        {showCamOptions && (
+                            <div className="cam-popup">
+                                <button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button>
+                                <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button>
+                            </div>
+                        )}
+                        <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
+                        <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
+                        <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
+                        <input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
+                        {chatInput.trim() !== "" ? (
+                            <button className="send-btn" onClick={sendMessage}>↑</button>
+                        ) : (
+                            <button 
+                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
+                                onMouseDown={startRecording}
+                                onMouseUp={stopRecordingAndSend}
+                                onMouseLeave={stopRecordingAndSend}
+                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
+                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
+                            >
+                                🎙️
+                            </button>
+                        )}
+                    </>
+                )}
+             </div>
+          </div>
+      )}
+
+      {/* MAIN GAME UI */}
       <div style={{display:'flex', flexDirection:'column', alignItems:'center', width:'100%'}}>
         <h1 className="logo">🧠 BrainSync</h1>
         {gameState === 'loading' && (<div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}><div className="galaxy-ring"></div><h2>Generating Exam Question... ✨</h2></div>)}
