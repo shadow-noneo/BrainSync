@@ -23,13 +23,24 @@ console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loade
 function cleanLatex(str) {
     if (!str) return "";
     let s = String(str);
-    s = s.replace(/f\\([a-zA-Z{(\\])/g, '\\\\$1');
-    s = s.replace(/egin\{/g, '\\begin{');
-    s = s.replace(/\\end\{/g, '\\end{');
-    s = s.replace(/(?<!\\)infty/g, '\\infty');
-    s = s.replace(/(?<!\\)Gamma\(/g, '\\Gamma(');
-    s = s.replace(/\\left\s+/g, '\\left');
-    s = s.replace(/\\right\s+/g, '\\right');
+    s = s.split('f\\frac').join('\\frac');
+    s = s.split('f\\Gamma').join('\\Gamma');
+    s = s.split('f\\int').join('\\int');
+    s = s.split('f\\sum').join('\\sum');
+    s = s.split('f\\sqrt').join('\\sqrt');
+    s = s.split('f\\cdot').join('\\cdot');
+    s = s.split('f\\beta').join('\\beta');
+    s = s.split('f\\alpha').join('\\alpha');
+    s = s.split('f\\partial').join('\\partial');
+    s = s.split('f\\left').join('\\left');
+    s = s.split('f\\right').join('\\right');
+    s = s.split('f\\sin').join('\\sin');
+    s = s.split('f\\cos').join('\\cos');
+    s = s.split('f\\tan').join('\\tan');
+    s = s.split('f\\pi').join('\\pi');
+    s = s.split('egin{').join('\\begin{');
+    s = s.split('\\end{').join('\\end{');
+    s = s.split('Gamma(').join('\\Gamma(');
     return s.trim();
 }
 
