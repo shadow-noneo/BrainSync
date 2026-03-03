@@ -51,16 +51,16 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `Act as an elite Engineering Professor. Create ONE multiple-choice question (${marks} Marks).
+    const prompt = `Act as an elite Engineering Professor for NEP 2020 curriculum. Create ONE multiple-choice question (${marks} Marks).
     Subject: ${subject}. Topic: ${topic}.
     
     RULES:
     1. Output ONLY valid JSON. No extra text outside the JSON.
-    2. For math, use ONLY standard LaTeX wrapped in single dollar signs. NEVER start a LaTeX command with f. Write \\frac not f\\frac.
+    2. ALL math MUST use proper LaTeX in dollar signs. NEVER write f\\frac, always \\frac. NEVER write f\\Gamma, always \\Gamma. NEVER write plain infty, always \\infty. NEVER write plain Gamma(, always \\Gamma(.
     3. Every option must be a COMPLETE answer, not just a letter like A or B.
 
     JSON Schema:
-    {"question": "Calculate $ \\int x dx $", "options": ["$ x^2 $", "$ \\frac{x^2}{2} $"], "answer": "$ \\frac{x^2}{2} $", "explanation": "Power rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "May 2024"}`;
+    {"question": "Calculate $ \\int x dx $", "options": ["$ x^2 $", "$ \\frac{x^2}{2} $"], "answer": "$ \\frac{x^2}{2} $", "explanation": "Power rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "RANDOM from: May 2019, Nov 2019, May 2022, Nov 2022, May 2023, Nov 2023, May 2024, Nov 2024"}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
