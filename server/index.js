@@ -32,35 +32,35 @@ function cleanLatex(str) {
     s = s.split('f\\beta').join('\\beta');
     s = s.split('f\\alpha').join('\\alpha');
     s = s.split('f\\partial').join('\\partial');
-    s = s.split('f\\d').join('\\d');
     s = s.split('egin{').join('\\begin{');
-    s = s.split('end{').join('\\end{');
-    s = s.split('infty').join('\\infty');
-    s = s.split('\\\\infty').join('\\infty');
-    s = s.split('int0').join('\\int_0');
-    s = s.split('int_{0}').join('\\int_{0}');
-    s = s.split('cdot').join('\\cdot');
-    s = s.split('partial').join('\\partial');
-    s = s.split('Gamma(').join('\\Gamma(');
-    s = s.split('\\\\Gamma').join('\\Gamma');
+    s = s.split('\\end{').join('\\end{');
+    s = s.replace(/(?<!\\)Gamma\(/g, '\\Gamma(');
+    s = s.replace(/(?<!\\)infty/g, '\\infty');
+    s = s.replace(/(?<!\\)cdot/g, '\\cdot');
+    s = s.replace(/(?<!\\)partial/g, '\\partial');
     return s.trim();
 }
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
-  const marks = [5, 6, 7, 8, 10][Math.floor(Math.random() * 5)];
+  const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `Act as an elite Engineering Professor for NEP 2020 curriculum. Create ONE multiple-choice question (${marks} Marks).
-    Subject: ${subject}. Topic: ${topic}.
-    
-    RULES:
-    1. Output ONLY valid JSON. No extra text outside the JSON.
-    2. ALL math MUST use proper LaTeX in dollar signs. NEVER write f\\frac, always \\frac. NEVER write f\\Gamma, always \\Gamma. NEVER write plain infty, always \\infty. NEVER write plain Gamma(, always \\Gamma(.
-    3. Every option must be a COMPLETE answer, not just a letter like A or B.
+    const prompt = `You are an expert MU (Mumbai University) NEP 2020 Engineering Professor. Generate ONE real exam-style question (${marks} Marks) exactly like MU end semester papers.
 
-    JSON Schema:
-    {"question": "Calculate $ \\int x dx $", "options": ["$ x^2 $", "$ \\frac{x^2}{2} $"], "answer": "$ \\frac{x^2}{2} $", "explanation": "Power rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "RANDOM from: May 2019, Nov 2019, May 2022, Nov 2022, May 2023, Nov 2023, May 2024, Nov 2024"}`;
+Subject: ${subject}. Topic: ${topic}.
+
+STRICT RULES:
+1. Output ONLY valid JSON. No extra text.
+2. The question must be a FULL problem-solving question like MU end sem papers (NOT a simple MCQ definition).
+3. For ${marks} marks question, the complexity should match: 3-4 marks = medium derivation, 5 marks = full derivation, 7-8 marks = long proof or two-part problem.
+4. The 4 options must be ONLY the FINAL ANSWER of the problem (not steps, not definitions).
+5. ALL math MUST use proper LaTeX wrapped in $ signs. NEVER write f\\frac, always \\frac. NEVER write f\\Gamma, always \\Gamma. NEVER write plain infty, always \\infty. NEVER write plain Gamma(, always \\Gamma(.
+6. The explanation must show complete step-by-step solution.
+7. exam_year must be randomly chosen from: May 2019, Nov 2019, May 2022, Nov 2022, May 2023, Nov 2023, May 2024, Nov 2024.
+
+JSON Schema:
+{"question": "Solve using variation of parameters: $y'' - 5y' + 6y = e^{2x}$", "options": ["$y = c_1e^{2x} + c_2e^{3x} - xe^{2x}$", "$y = c_1e^{2x} + c_2e^{3x} + xe^{2x}$", "$y = c_1e^{2x} - c_2e^{3x} + xe^{2x}$", "$y = c_1e^{2x} + c_2e^{3x} + e^{2x}$"], "answer": "$y = c_1e^{2x} + c_2e^{3x} - xe^{2x}$", "explanation": "Step 1: Find CF... Step 2: Find W... Step 3: Find PI...", "marks": ${marks}, "topic": "${topic}", "exam_year": "May 2023"}`
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
