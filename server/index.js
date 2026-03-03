@@ -220,22 +220,20 @@ io.on('connection', (socket) => {
   socket.on('submit_answer', ({ roomCode, answerIndex, username }) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
-    
-    if (username === room.hostUsername) { const isHostCorrect = answerIndex === room.currentQuestion.correctIndex; if (isHostCorrect) { room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5); io.to(roomCode).emit('update_scores', room.scores); } socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect: isHostCorrect }); return; }
-    room.submittedUsers.add(username);
-    broadcastProgress(roomCode);
 
     const isCorrect = (answerIndex === room.currentQuestion.correctIndex);
-    if (isCorrect) {
-       room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5);
-       io.to(roomCode).emit('update_scores', room.scores);
+
+    if (username === room.hostUsername) {
+        if (isCorrect) {
+            room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5);
+            io.to(roomCode).emit('update_scores', room.scores);
+        }
+        socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect });
+        return;
     }
-    
-    const totalStudents = Math.max(0, room.users.length - 1);
-    if (room.submittedUsers.size >= totalStudents) {
-        room.canMoveOn = true;
-        if(room.hostId) io.to(room.hostId).emit('unlock_host');
-    }
+
+    room.submittedUsers.add(username);
+    broadcastProgress(roomCode);
     
     socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect });
   });
