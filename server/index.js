@@ -15,7 +15,7 @@ const io = new Server(server, {
   pingTimeout: 5000 
 });
 
-const groq = new Groq({ apiKey: "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" });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const rooms = {}; 
 
 console.log("🚀 SERVER v40.0 - CLEAN & STABLE");
