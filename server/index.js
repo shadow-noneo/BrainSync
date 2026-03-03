@@ -24,12 +24,20 @@ function cleanLatex(str) {
     if (!str) return "";
     let s = String(str);
     s = s.replace(/f\\frac/g, '\\frac');
-    s = s.replace(/\\f([^r])/g, 'f$1');
+    s = s.replace(/f\\Gamma/g, '\\Gamma');
+    s = s.replace(/f\\int/g, '\\int');
+    s = s.replace(/f\\sum/g, '\\sum');
+    s = s.replace(/f\\sqrt/g, '\\sqrt');
+    s = s.replace(/f\\cdot/g, '\\cdot');
+    s = s.replace(/f\\(/g, '\\(');
+    s = s.replace(/f\\[/g, '\\[');
+    s = s.replace(/f\\{/g, '\\{');
     s = s.replace(/egin\{/g, '\\begin{');
     s = s.replace(/end\{/g, '\\end{');
     s = s.replace(/\\int f\\frac/g, '\\int \\frac');
     s = s.replace(/\\left\s+/g, '\\left');
     s = s.replace(/\\right\s+/g, '\\right');
+    s = s.replace(/\\f([^a-z])/g, 'f$1');
     return s.trim();
 }
 
