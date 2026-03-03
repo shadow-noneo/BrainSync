@@ -221,6 +221,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
     
+    if (username === room.hostUsername) { socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect: answerIndex === room.currentQuestion.correctIndex }); return; }
     room.submittedUsers.add(username);
     broadcastProgress(roomCode);
 
