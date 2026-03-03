@@ -221,7 +221,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
     
-    if (username === room.hostUsername) { socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect: answerIndex === room.currentQuestion.correctIndex }); return; }
+    if (username === room.hostUsername) { const isHostCorrect = answerIndex === room.currentQuestion.correctIndex; if (isHostCorrect) { room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5); io.to(roomCode).emit('update_scores', room.scores); } socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect: isHostCorrect }); return; }
     room.submittedUsers.add(username);
     broadcastProgress(roomCode);
 
