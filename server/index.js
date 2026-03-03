@@ -22,13 +22,15 @@ console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loade
 
 function cleanLatex(str) {
     if (!str) return "";
-    return String(str)
-        .replace(/f\\frac/g, '\\frac') // Fixes "f\frac" bug
-        .replace(/\\f/g, 'f')
-        .replace(/rac\{/g, '\\frac{')
-        .replace(/\\left\s+/g, '\\left')
-        .replace(/\\right\s+/g, '\\right')
-        .trim();
+    let s = String(str);
+    s = s.replace(/f\\frac/g, '\\frac');
+    s = s.replace(/\\f([^r])/g, 'f$1');
+    s = s.replace(/egin\{/g, '\\begin{');
+    s = s.replace(/end\{/g, '\\end{');
+    s = s.replace(/\\int f\\frac/g, '\\int \\frac');
+    s = s.replace(/\\left\s+/g, '\\left');
+    s = s.replace(/\\right\s+/g, '\\right');
+    return s.trim();
 }
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
