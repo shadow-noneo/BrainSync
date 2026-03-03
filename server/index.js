@@ -18,7 +18,19 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: "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" });
 const rooms = {}; 
 
-console.log("🚀 SERVER v34.0 - SMART TUTOR & WHATSAPP MODE");
+console.log("🚀 SERVER v38.0 - MATH SANITIZER & STRICT LOCK");
+
+// 🟢 NEW: AGGRESSIVE MATH CLEANER
+function cleanLatex(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/f\\frac/g, '\\frac') // Fixes the specific bug in your screenshot
+        .replace(/\\f/g, 'f')           // Remove escaped f
+        .replace(/rac\{/g, '\\frac{')   // Fix broken frac
+        .replace(/\\left\s+/g, '\\left')
+        .replace(/\\right\s+/g, '\\right')
+        .trim();
+}
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
@@ -28,26 +40,31 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
     const prompt = `Act as an elite Engineering Professor. Create ONE multiple-choice question (${marks} Marks).
     Subject: ${subject}. Topic: ${topic}.
     
-    ABSOLUTE RULES:
+    RULES:
     1. Output ONLY valid JSON.
-    2. MATH FORMATTING: You MUST use LaTeX for ALL equations, variables, and fractions.
-    3. You MUST double-escape LaTeX backslashes (e.g., \\\\frac, \\\\sin, \\\\cos).
-    4. CRITICAL: Wrap the ENTIRE equation in ONE pair of dollar signs. Do not leave math outside the dollar signs!
-    5. DO NOT prefix options with A, B, C, D. Just the raw text/math.
-    6. Include a realistic "exam_year" field (e.g., "May 2023", "Dec 2024") from NEP 2020 era.
+    2. Use standard LaTeX. DO NOT put random 'f' characters before commands.
+    3. Example: Use $\\frac{a}{b}$, NOT $f\\frac{a}{b}$.
+    4. Wrap the entire math expression in single dollar signs $.
 
     JSON Schema:
-    {"question": "What is the derivative of $e^{2x}$?", "options": ["$2e^{2x}$", "$e^{2x}$", "$\\\\frac{1}{2}e^{2x}$", "$4e^{2x}$"], "answer": "$2e^{2x}$", "explanation": "Using the chain rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "Dec 2023"}`;
+    {"question": "Calculate $ \\int x dx $", "options": ["$ x^2 $", "$ \\frac{x^2}{2} $"], "answer": "$ \\frac{x^2}{2} $", "explanation": "Power rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "May 2024"}`;
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
-        temperature: 0.7,
+        temperature: 0.5, // Lower temp for cleaner math
         response_format: { type: "json_object" } 
     });
     
     let data = JSON.parse(res.choices[0].message.content);
 
+    // 🟢 SANITIZE MATH DATA BEFORE SENDING
+    data.question = cleanLatex(data.question);
+    data.options = data.options.map(o => cleanLatex(o));
+    data.answer = cleanLatex(data.answer);
+    data.explanation = cleanLatex(data.explanation);
+
+    // Clean options text (remove A., B. prefixes)
     const cleanOpts = data.options.map(o => {
         let str = String(o).trim();
         while (/^[A-Da-d]\s*[\.\)]\s*/.test(str)) str = str.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
@@ -74,51 +91,63 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
   } catch (e) { 
     if (attempt < 2) return await generateAIQuestion(subject, topicsArray, 2);
     return { 
-        question: "Could not generate a complex question. Please click Next.", 
-        options: ["Next", "Next", "Next", "Next"], answer: "Next", explanation: "Error.", correctIndex: 0, marks: 0, topic: "Recovery Mode" 
+        question: "Math Generation Error. Please click Next.", 
+        options: ["Error", "Error", "Error", "Error"], answer: "Error", explanation: "Error.", correctIndex: 0, marks: 0, topic: "System" 
     }; 
   }
 }
 
-// 🟢 SMART TUTOR LOGIC: No longer robotic. It adapts to the user's specific text.
-async function solveDoubt(q, d) {
-  try {
-    const res = await groq.chat.completions.create({ 
-        messages: [{ role: "user", content: `
-        You are a helpful, friendly Engineering Tutor (like Google Gemini).
-        The student is looking at this question: "${q}".
-        The student asks: "${d}".
-
-        INSTRUCTIONS:
-        1. If they ask for a HINT, give them a subtle clue, do NOT give the answer.
-        2. If they ask "What is X?", explain the concept of X simply.
-        3. If they are confused, break down the logic.
-        4. Be conversational and human. Keep it short (2-3 sentences).
-        ` }], 
-        model: "llama-3.3-70b-versatile" 
-    });
-    return res.choices[0].message.content;
-  } catch (e) { return "I'm having trouble connecting to my brain right now."; }
+function broadcastProgress(roomCode) {
+    if (!rooms[roomCode]) return;
+    const room = rooms[roomCode];
+    const totalStudents = Math.max(0, room.users.length - 1); 
+    const submittedCount = room.submittedUsers ? room.submittedUsers.size : 0;
+    io.to(roomCode).emit('progress_update', { submitted: submittedCount, total: totalStudents });
 }
 
 io.on('connection', (socket) => {
+  
   socket.on('rejoin_room', ({ roomCode, username }) => {
     if (rooms[roomCode]) {
       socket.join(roomCode);
       socket.emit('set_role', { role: rooms[roomCode].hostUsername === username ? 'host' : 'member' });
       if (rooms[roomCode].currentQuestion) socket.emit('new_question', rooms[roomCode].currentQuestion);
       socket.emit('update_scores', rooms[roomCode].scores);
+      broadcastProgress(roomCode);
     } else { socket.emit('error_message', "Room expired."); }
   });
 
   socket.on('join_room', ({ roomCode, username }) => {
     socket.join(roomCode);
-    if (!rooms[roomCode]) rooms[roomCode] = { users: [], hostId: socket.id, hostUsername: username, currentQuestion: null, scores: {}, history: [], historyIndex: -1, questionLimit: -1, questionCount: 0, canMoveOn: false, selectedTopics: ["General"] };
+    if (!rooms[roomCode]) rooms[roomCode] = { 
+        users: [], hostId: socket.id, hostUsername: username, 
+        currentQuestion: null, scores: {}, history: [], 
+        historyIndex: -1, questionLimit: -1, questionCount: 0, 
+        canMoveOn: false, selectedTopics: ["General"],
+        submittedUsers: new Set()
+    };
+    
+    rooms[roomCode].users = rooms[roomCode].users.filter(u => u.username !== username);
     rooms[roomCode].users.push({ id: socket.id, username });
+    
     if (!rooms[roomCode].scores[username]) rooms[roomCode].scores[username] = 0;
     if (rooms[roomCode].hostUsername === username) rooms[roomCode].hostId = socket.id;
+    
     socket.emit('set_role', { role: rooms[roomCode].hostUsername === username ? 'host' : 'member' });
     io.to(roomCode).emit('update_scores', rooms[roomCode].scores);
+    broadcastProgress(roomCode);
+  });
+
+  socket.on('disconnecting', () => {
+      const roomsJoined = [...socket.rooms];
+      roomsJoined.forEach(roomCode => {
+          if (rooms[roomCode]) {
+              rooms[roomCode].users = rooms[roomCode].users.filter(u => u.id !== socket.id);
+              // Clean up submissions if user left (optional, keeps count accurate)
+              // rooms[roomCode].submittedUsers.delete(... find username ...); 
+              broadcastProgress(roomCode);
+          }
+      });
   });
 
   socket.on('send_message', (data) => socket.to(data.roomCode).volatile.emit('receive_message', { ...data, time: new Date().toLocaleTimeString() }));
@@ -147,8 +176,11 @@ io.on('connection', (socket) => {
     room.currentQuestion = qData;
     room.questionCount++;
     room.timeLeft = 420; room.timerRunning = true; room.canMoveOn = false;
+    room.submittedUsers = new Set(); 
 
     io.to(roomCode).emit('new_question', qData);
+    broadcastProgress(roomCode);
+
     if (room.hostId) io.to(room.hostId).emit('lock_host');
 
     if (room.interval) clearInterval(room.interval);
@@ -161,12 +193,27 @@ io.on('connection', (socket) => {
     }, 1000);
   });
 
+  // 🟢 SERVER-SIDE LOCK: Host cannot skip unless everyone submitted OR it's a review
   socket.on('nav_next', ({ roomCode }) => {
     const room = rooms[roomCode];
-    if (room && room.historyIndex < room.history.length - 1) {
+    if (!room) return;
+
+    const totalStudents = Math.max(0, room.users.length - 1);
+    const submittedCount = room.submittedUsers.size;
+    const isLatestQuestion = room.historyIndex === room.history.length - 1;
+
+    // Only block if we are on the latest question AND not everyone has answered
+    if (isLatestQuestion && submittedCount < totalStudents) {
+        if (room.hostId) io.to(room.hostId).emit('error_message', "Wait for all students to answer!");
+        return;
+    }
+
+    if (room.historyIndex < room.history.length - 1) {
         room.historyIndex++;
         io.to(roomCode).emit('new_question', room.history[room.historyIndex]);
         io.to(roomCode).emit('round_result', { correctIndex: room.history[room.historyIndex].correctIndex, correctAnswer: room.history[room.historyIndex].answer, explanation: room.history[room.historyIndex].explanation, isReview: true });
+    } else {
+        // Only allow generating NEW question if conditions met (handled by client calling start_quiz, but we can double check)
     }
   });
   
@@ -182,15 +229,23 @@ io.on('connection', (socket) => {
   socket.on('submit_answer', ({ roomCode, answerIndex, username }) => {
     const room = rooms[roomCode];
     if (!room || !room.currentQuestion) return;
+    
+    room.submittedUsers.add(username);
+    broadcastProgress(roomCode);
+
     const isCorrect = (answerIndex === room.currentQuestion.correctIndex);
     if (isCorrect) {
        room.scores[username] = (room.scores[username] || 0) + (room.currentQuestion.marks || 5);
        io.to(roomCode).emit('update_scores', room.scores);
     }
-    if (!room.canMoveOn) {
+    
+    // Auto-unlock if everyone finished
+    const totalStudents = Math.max(0, room.users.length - 1);
+    if (room.submittedUsers.size >= totalStudents) {
         room.canMoveOn = true;
         if(room.hostId) io.to(room.hostId).emit('unlock_host');
     }
+    
     socket.emit('round_result', { correctIndex: room.currentQuestion.correctIndex, correctAnswer: room.currentQuestion.answer, explanation: room.currentQuestion.explanation, isCorrect });
   });
 
@@ -209,11 +264,6 @@ io.on('connection', (socket) => {
         io.to(room.hostId).emit('host_notification', { type, username });
         if (type === 'stuck') { room.canMoveOn = true; io.to(room.hostId).emit('unlock_host'); }
     }
-  });
-
-  socket.on('ask_ai', async ({ roomCode, userQuery }) => {
-    const room = rooms[roomCode];
-    if (room) socket.emit('ai_voice_reply', { text: await solveDoubt(room.currentQuestion.question, userQuery) });
   });
 });
 
