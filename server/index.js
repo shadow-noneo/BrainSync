@@ -85,7 +85,8 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
 
     return data;
 
-  } catch (e) { 
+  } catch (e) {
+    console.error("❌ Groq Error:", e.message); 
     if (attempt < 2) return await generateAIQuestion(subject, topicsArray, 2);
     return { 
         question: "Math Generation Error. Please click Next.", 
