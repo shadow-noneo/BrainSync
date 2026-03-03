@@ -42,6 +42,7 @@ const sanitizeQuestionData = (data) => {
         explanation: sanitizeText(data?.explanation || "")
     };
 };
+const getCorrectIndex = () => roundResult?.correctIndex ?? 0;
 const getLetter = (i) => ["A", "B", "C", "D"][i] ?? "?";
 const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
