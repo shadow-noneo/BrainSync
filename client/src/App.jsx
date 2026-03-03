@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-undef */
+/* eslint-disable */
 import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import 'katex/dist/katex.min.css'; 
@@ -186,9 +185,9 @@ function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [studentProgress, setStudentProgress] = useState({ submitted: 0, total: 0 });
   
-  // 🟢 AD STATE & COUNTER (Fixed to satisfy linter)
+  // 🟢 AD STATE & COUNTER
   const [showAd, setShowAd] = useState(false);
-  const questionCounterRef = useRef(0); // Using ref prevents "unused variable" errors
+  const questionCounterRef = useRef(0); 
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -248,7 +247,6 @@ function App() {
       
       // 🟢 FIXED AD TRIGGER LOGIC
       questionCounterRef.current += 1;
-      // Show ad every 5th question (5, 10, 15...) BUT NOT for Host
       if (questionCounterRef.current > 1 && questionCounterRef.current % 5 === 1 && role === 'member') {
           setShowAd(true);
       }
@@ -332,8 +330,8 @@ function App() {
   const handleImageUpload = (e) => { setShowCamOptions(false); if(e.target.files[0]) compressImage(e.target.files[0], (dataUrl) => { const msg = { username, text: "", image: dataUrl, audio: null, time: new Date().toLocaleTimeString() }; setMessages(prev => [...prev, msg]); socket.emit('send_message', { roomCode, ...msg }); }); };
   const toggleTopic = (prompt) => { setSelectedTopics(prev => prev.includes(prompt) ? prev.filter(t => t !== prompt) : [...prev, prompt]); };
   const toggleSubject = (sub) => { if(expandedSubject === sub) { setExpandedSubject(null); } else { setExpandedSubject(sub); } };
-  const downloadPDF = () => { if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save."); const doc = new jsPDF(); let y = 20; doc.setFontSize(22); doc.text("BrainSync - Quiz Report", 20, y); y += 10; doc.setFontSize(10); doc.text(\`Date: \${new Date().toLocaleDateString()}\`, 20, y); y += 20; quizHistory.forEach((q, i) => { if(y > 270) { doc.addPage(); y = 20; } let plainQ = q.question.replace(/\$/g, ''); doc.text(\`Q\${i+1}. \${plainQ}\`, 20, y); y += 10; q.options.forEach((opt, idx) => { if(y > 280) { doc.addPage(); y = 20; } let plainOpt = opt.replace(/\$/g, ''); doc.text(\`   (\${getLetter(idx)}) \${plainOpt}\`, 20, y); y += 6; }); y += 8; }); doc.save("BrainSync_Quiz.pdf"); toast.success("PDF Downloaded! 📥"); };
-  const formatRecTime = (s) => \`\${Math.floor(s / 60)}:\${s % 60 < 10 ? '0' : ''}\${s % 60}\`;
+  const downloadPDF = () => { if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save."); const doc = new jsPDF(); let y = 20; doc.setFontSize(22); doc.text("BrainSync - Quiz Report", 20, y); y += 10; doc.setFontSize(10); doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y); y += 20; quizHistory.forEach((q, i) => { if(y > 270) { doc.addPage(); y = 20; } let plainQ = q.question.replace(/\$/g, ''); doc.text(`Q${i+1}. ${plainQ}`, 20, y); y += 10; q.options.forEach((opt, idx) => { if(y > 280) { doc.addPage(); y = 20; } let plainOpt = opt.replace(/\$/g, ''); doc.text(`   (${getLetter(idx)}) ${plainOpt}`, 20, y); y += 6; }); y += 8; }); doc.save("BrainSync_Quiz.pdf"); toast.success("PDF Downloaded! 📥"); };
+  const formatRecTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
 
   return (
     <div className="app-container">
@@ -441,7 +439,6 @@ function App() {
         </div>
       )}
 
-      {/* CHAT SIDEBAR AND MAIN CONTENT */}
       {chatOpen && (
           <div className="chat-sidebar">
              <div className="chat-header">

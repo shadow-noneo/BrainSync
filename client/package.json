@@ -13,8 +13,8 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "jspdf": "^4.1.0",
-    "katex": "^0.16.28",
+    "jspdf": "^4.2.0",
+    "katex": "^0.16.33",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
