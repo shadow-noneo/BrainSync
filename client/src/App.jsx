@@ -15,35 +15,21 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 CRASH GUARD: Prevents White Screen if Math fails
+// 🟢 CRASH GUARD
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
   static getDerivedStateFromError(error) { return { hasError: true }; }
   componentDidCatch(error, errorInfo) { console.error("CRASH REPORT:", error, errorInfo); }
   render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{padding: 20, color: 'white', textAlign: 'center'}}>
-          <h2>⚠️ Display Error</h2>
-          <p>Something went wrong rendering this question.</p>
-          <button onClick={() => window.location.reload()} style={{padding: 10, marginTop: 10, background:'#333', color:'white', border:'1px solid #555', borderRadius:5}}>Reload App</button>
-        </div>
-      );
-    }
+    if (this.state.hasError) return <div style={{padding: 20, color: 'white', textAlign: 'center'}}><h2>⚠️ Display Error</h2><button onClick={() => window.location.reload()} style={{padding: 10, marginTop: 10}}>Reload</button></div>;
     return this.props.children; 
   }
 }
 
-// 🟢 MATH SANITIZER (Kept to prevent f\frac bug)
+// 🟢 SAFEST SANITIZER
 const sanitizeText = (text) => {
     if (!text) return "";
-    return String(text)
-        .replace(/f\\frac/g, '\\frac')  
-        .replace(/\\f/g, 'f')            
-        .replace(/rac\{/g, '\\frac{')    
-        .replace(/\\left\s+/g, '\\left')
-        .replace(/\\right\s+/g, '\\right')
-        .trim();
+    return String(text).replace(/f\\frac/g, '\\frac').replace(/\\f/g, 'f').replace(/rac\{/g, '\\frac{').replace(/\\left\s+/g, '\\left').replace(/\\right\s+/g, '\\right').trim();
 };
 
 const sanitizeQuestionData = (data) => {
@@ -60,18 +46,9 @@ const sanitizeQuestionData = (data) => {
 const MathText = ({ text }) => {
   if (!text) return <span>...</span>;
   try {
-      let cleanText = sanitizeText(text)
-         .replace(/f\\frac/g, '\\frac').replace(/\\f/g, 'f').replace(/\f/g, '').replace(/rac\{/g, '\\frac{').replace(/\\rac\{/g, '\\frac{').replace(/ight/g, '\\right').replace(/eft/g, '\\left').replace(/int/g, '\\int').replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$').replace(/\$\$/g, '$');
+      let cleanText = sanitizeText(text).replace(/f\\frac/g, '\\frac').replace(/\\f/g, 'f').replace(/rac\{/g, '\\frac{').replace(/\\left\s+/g, '\\left').replace(/\\right\s+/g, '\\right').replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$').replace(/\$\$/g, '$');
       const parts = cleanText.split('$');
-      return (
-        <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
-          {parts.map((p, i) => {
-            if (!p) return null;
-            if (i % 2 === 1) return <span key={i}><InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} /></span>;
-            return <span key={i}>{p}</span>;
-          })}
-        </span>
-      );
+      return <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>{parts.map((p, i) => { if (!p) return null; if (i % 2 === 1) return <span key={i}><InlineMath math={p} renderError={() => <span>{p}</span>} /></span>; return <span key={i}>{p}</span>; })}</span>;
   } catch (e) { return <span>{text}</span>; }
 };
 
@@ -148,7 +125,7 @@ function App() {
     socket.on('set_role', ({ role }) => { setRole(role); if (gameState === 'menu') setGameState('lobby'); localStorage.setItem("bs_room", roomCode); localStorage.setItem("bs_user", username); unlockAudio(); });
     socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
     
-    // 🟢 SAFE DATA HANDLER (No Ads)
+    // 🟢 SAFE DATA HANDLER
     socket.on('new_question', (data) => {
       try {
           const cleanData = sanitizeQuestionData(data);
