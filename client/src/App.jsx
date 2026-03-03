@@ -15,14 +15,12 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 1. GOOGLE AD COMPONENT
+// 🟢 1. YOUR REAL GOOGLE AD COMPONENT
 const GoogleAd = () => {
     useEffect(() => {
         try {
-            (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-            // Ignore ad errors
-        }
+            if(window.adsbygoogle) (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) { console.error("AdSense Error:", e); }
     }, []);
 
     return (
@@ -59,59 +57,53 @@ const AdOverlay = ({ onFinish }) => {
         <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'white', padding: '20px', boxSizing: 'border-box'}}>
             <h2 style={{color:'#FFD60A', marginBottom: 10}}>💰 SPONSORED BREAK 💰</h2>
             <p style={{color:'#aaa', marginBottom: 20}}>Please wait for the next question...</p>
-            
-            <div style={{width: '100%', maxWidth: '500px'}}>
-                <GoogleAd />
-            </div>
-
-            <div style={{fontSize:'20px', fontWeight:'bold', marginTop: 20}}>
-                Resuming in {timeLeft}s...
-            </div>
+            <div style={{width: '100%', maxWidth: '500px'}}><GoogleAd /></div>
+            <div style={{fontSize:'20px', fontWeight:'bold', marginTop: 20}}>Resuming in {timeLeft}s...</div>
             {timeLeft === 0 && <button onClick={onFinish} style={{padding:'12px 30px', marginTop:20, background:'#34C759', color:'white', border:'none', borderRadius:12, fontSize: 18, fontWeight: 'bold', cursor: 'pointer'}}>Skip ➤</button>}
         </div>
     );
 };
 
-// 🟢 NUCLEAR MATH REPAIR
+// 🟢 SAFEST SANITIZER (Prevents f\frac bug)
+const sanitizeText = (text) => {
+    if (!text) return "";
+    return String(text)
+        .replace(/f\\frac/g, '\\frac') // Specific fix for your bug
+        .replace(/\\f/g, 'f')            
+        .replace(/rac\{/g, '\\frac{')    
+        .replace(/\\left\s+/g, '\\left')
+        .replace(/\\right\s+/g, '\\right')
+        .trim();
+};
+
+const sanitizeQuestionData = (data) => {
+    if (!data) return null;
+    return {
+        ...data,
+        question: sanitizeText(data?.question || ""),
+        // Ensure options is ALWAYS an array to prevent crash
+        options: Array.isArray(data?.options) ? data.options.map(o => sanitizeText(o)) : ["Error Loading Options", "Try Next Question", "", ""],
+        answer: sanitizeText(data?.answer || ""),
+        explanation: sanitizeText(data?.explanation || "")
+    };
+};
+
 const MathText = ({ text }) => {
   if (!text) return null;
   try {
-      let cleanText = String(text)
-         .replace(/f\\frac/g, '\\frac') 
-         .replace(/\\f/g, 'f') 
-         .replace(/\f/g, '')
-         .replace(/rac\{/g, '\\frac{')
-         .replace(/\\rac\{/g, '\\frac{') 
-         .replace(/ight/g, '\\right')
-         .replace(/eft/g, '\\left')
-         .replace(/int/g, '\\int')
-         .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
-         .replace(/\\\[/g, '$').replace(/\\\]/g, '$')
-         .replace(/\$\$/g, '$');
-         
+      // Double clean inside renderer to be safe
+      let cleanText = sanitizeText(text);
       const parts = cleanText.split('$');
       return (
         <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
           {parts.map((p, i) => {
             if (!p) return null;
-            if (i % 2 === 1) {
-              return (
-                <span key={i}>
-                    <InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} />
-                </span>
-              );
-            } else {
-              if (/[\\]|[\^]|[_]/.test(p) || p.includes('frac')) {
-                  return <InlineMath key={i} math={p} renderError={() => <span>{p}</span>} />;
-              }
-              return <span key={i}>{p}</span>;
-            }
+            if (i % 2 === 1) return <span key={i}><InlineMath math={p} renderError={(e) => <span style={{color: '#FFD60A', fontFamily: 'monospace'}}>{p}</span>} /></span>;
+            return <span key={i}>{p}</span>;
           })}
         </span>
       );
-  } catch (e) {
-      return <span>{text}</span>; 
-  }
+  } catch (e) { return <span>{text}</span>; }
 };
 
 const compressImage = (file, callback) => {
@@ -123,39 +115,19 @@ const compressImage = (file, callback) => {
         img.onload = () => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            const maxWidth = 800; 
-            const scaleSize = maxWidth / img.width;
-            canvas.width = maxWidth;
-            canvas.height = img.height * scaleSize;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            callback(canvas.toDataURL('image/jpeg', 0.6));
+            const maxWidth = 800; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height); callback(canvas.toDataURL('image/jpeg', 0.6));
         }
     }
 };
 
-const SYLLABUS_MATH = [
-    { id: "m1", name: "Module 1: Diff Eq", prompt: "Exact differential Equations" },
-    { id: "m2", name: "Module 2: LDE", prompt: "Linear Differential Equation" },
-    { id: "m3", name: "Module 3: Beta Gamma", prompt: "Beta and Gamma functions" },
-    { id: "m4", name: "Module 4: Double Int", prompt: "Double integration" },
-    { id: "m5", name: "Module 5: Triple Int", prompt: "Triple integration" },
-    { id: "m6", name: "Module 6: Numerical", prompt: "Runge-Kutta" }
-];
-
-const SYLLABUS_PHYSICS = [
-    { id: "p1", name: "Module 1: Semiconductors", prompt: "Basics of Semiconductors, Fermi Dirac, Hall Effect" },
-    { id: "p2", name: "Module 2: Junction Diodes", prompt: "PN Junction, Biasing, LED, Zener Diode" },
-    { id: "p3", name: "Module 3: Important Diodes", prompt: "Photo diode, Solar cell, Varactor diode, Gunn diode" },
-    { id: "p4", name: "Module 4: BJT", prompt: "Bipolar Junction Transistors, CE configurations" },
-    { id: "p5", name: "Module 5: FETs", prompt: "Field Effect Transistors, JFET, MOSFET" },
-    { id: "p6", name: "Module 6: Nano Tech", prompt: "Nanotechnology, Optical/Electrical properties" }
-];
+const SYLLABUS_MATH = [{ id: "m1", name: "Module 1: Diff Eq", prompt: "Exact differential Equations" }, { id: "m2", name: "Module 2: LDE", prompt: "Linear Differential Equation" }, { id: "m3", name: "Module 3: Beta Gamma", prompt: "Beta and Gamma functions" }, { id: "m4", name: "Module 4: Double Int", prompt: "Double integration" }, { id: "m5", name: "Module 5: Triple Int", prompt: "Triple integration" }, { id: "m6", name: "Module 6: Numerical", prompt: "Runge-Kutta" }];
+const SYLLABUS_PHYSICS = [{ id: "p1", name: "Module 1: Semiconductors", prompt: "Basics of Semiconductors, Fermi Dirac, Hall Effect" }, { id: "p2", name: "Module 2: Junction Diodes", prompt: "PN Junction, Biasing, LED, Zener Diode" }, { id: "p3", name: "Module 3: Important Diodes", prompt: "Photo diode, Solar cell, Varactor diode, Gunn diode" }, { id: "p4", name: "Module 4: BJT", prompt: "Bipolar Junction Transistors, CE configurations" }, { id: "p5", name: "Module 5: FETs", prompt: "Field Effect Transistors, JFET, MOSFET" }, { id: "p6", name: "Module 6: Nano Tech", prompt: "Nanotechnology, Optical/Electrical properties" }];
 
 function App() {
   const [gameState, setGameState] = useState(() => localStorage.getItem("bs_room") ? 'lobby' : 'menu');
   const [roomCode, setRoomCode] = useState(() => localStorage.getItem("bs_room") || '');
   const [username, setUsername] = useState(() => localStorage.getItem("bs_user") || '');
-  
   const [role, setRole] = useState('member'); 
   const [question, setQuestion] = useState(null);
   const [roundResult, setRoundResult] = useState(null); 
@@ -163,163 +135,36 @@ function App() {
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(null);
   const [scores, setScores] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
-  
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [showCamOptions, setShowCamOptions] = useState(false);
-  
   const [recState, setRecState] = useState('idle'); 
   const [recTime, setRecTime] = useState(0);
   const [recStartTime, setRecStartTime] = useState(0);
-  
   const [selectedTopics, setSelectedTopics] = useState([]); 
   const [questionLimit, setQuestionLimit] = useState(""); 
   const [expandedSubject, setExpandedSubject] = useState(null); 
   const [quizHistory, setQuizHistory] = useState([]);
-
   const [isHistoryMode, setIsHistoryMode] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [historyLength, setHistoryLength] = useState(0);
   const [canMoveOn, setCanMoveOn] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [studentProgress, setStudentProgress] = useState({ submitted: 0, total: 0 });
-  
-  // 🟢 AD STATE & COUNTER
   const [showAd, setShowAd] = useState(false);
-  const questionCounterRef = useRef(0); 
+  const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0);
 
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const audioContextRef = useRef(null);
-  const roomInputRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const recTimerRef = useRef(null);
+  const mediaRecorderRef = useRef(null); const audioChunksRef = useRef([]); const audioContextRef = useRef(null); const roomInputRef = useRef(null); const fileInputRef = useRef(null); const cameraInputRef = useRef(null); const messagesEndRef = useRef(null); const recTimerRef = useRef(null);
 
-  // 🟢 AGGRESSIVE SANITIZER
-  const sanitizeText = (text) => {
-    if (!text) return "";
-    return String(text)
-        .replace(/f\\frac/g, '\\frac')  
-        .replace(/\\f/g, 'f')            
-        .replace(/rac\{/g, '\\frac{')    
-        .replace(/\\left\s+/g, '\\left')
-        .replace(/\\right\s+/g, '\\right')
-        .trim();
-  };
-
-  const sanitizeQuestionData = (data) => {
-    if (!data) return null;
-    return {
-        ...data,
-        question: sanitizeText(data.question),
-        options: data.options.map(o => sanitizeText(o)),
-        answer: sanitizeText(data.answer),
-        explanation: sanitizeText(data.explanation)
-    };
-  };
-
-  useEffect(() => {
-    if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); unlockAudio(); }
-  }, []);
-
-  const unlockAudio = () => {
-      if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
-  };
-
-  useEffect(() => {
-    socket.on('set_role', ({ role }) => { 
-        setRole(role); 
-        if (gameState === 'menu') setGameState('lobby');
-        localStorage.setItem("bs_room", roomCode);
-        localStorage.setItem("bs_user", username);
-        unlockAudio();
-    });
-
-    socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
-    
-    socket.on('new_question', (data) => {
-      const cleanData = sanitizeQuestionData(data);
-      setQuestion(cleanData);
-      
-      // 🟢 FIXED AD TRIGGER LOGIC
-      questionCounterRef.current += 1;
-      if (questionCounterRef.current > 1 && questionCounterRef.current % 5 === 1 && role === 'member') {
-          setShowAd(true);
-      }
-
-      setRoundResult(null); 
-      setSelectedOptionIndex(null);
-      setGameState('playing');
-      setIsHistoryMode(false); 
-      setHistoryLength(prev => prev + 1);
-      setHistoryIndex(prev => prev + 1);
-    });
-
-    socket.on('lock_host', () => setCanMoveOn(false));
-    socket.on('unlock_host', () => { if(!canMoveOn) toast.success("Unlocked! 🔓"); setCanMoveOn(true); });
-    socket.on('timer_update', (t) => setTimer(t));
-    socket.on('update_scores', (s) => setScores(s));
-    socket.on('progress_update', (data) => { setStudentProgress(data); });
-    
-    socket.on('round_result', (data) => { 
-        const cleanData = { ...data, explanation: sanitizeText(data.explanation), correctAnswer: sanitizeText(data.correctAnswer) };
-        setRoundResult(cleanData); 
-        setGameState('result'); 
-        if(data.isReview) setIsHistoryMode(true); 
-    });
-
-    socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
-    socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
-
-    socket.on('receive_message', (msg) => { 
-        setMessages(prev => [...prev, msg]); 
-        if(!chatOpen) toast("New Message 💬", { icon: '💬' }); 
-    });
-    
-    socket.on('game_over', ({ scores, history }) => { 
-        setGameState('lobby'); 
-        toast("Quiz Ended! 🏁"); 
-        setScores(scores);
-        setQuizHistory(history || []);
-    });
-
-    const handleVisibilityChange = () => { if (document.hidden && gameState === 'playing' && role === 'member') socket.emit('tab_switch', { roomCode, username }); };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => { socket.off(); document.removeEventListener("visibilitychange", handleVisibilityChange); };
-  }, [gameState, role, roomCode, username, chatOpen, canMoveOn]);
-
-  useEffect(() => { 
-      if (messagesEndRef.current) { messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }
-  }, [messages, chatOpen]);
-
-  const handleAnswer = (opt, index) => { setSelectedOptionIndex(index); socket.emit('submit_answer', { roomCode, answerIndex: index, username }); };
-  const navPrev = () => { socket.emit('nav_prev', { roomCode }); setHistoryIndex(prev => Math.max(0, prev - 1)); };
-  
-  const handleSmartNext = () => {
-      if (isHistoryMode && historyIndex < historyLength - 1) {
-          socket.emit('nav_next', { roomCode });
-          setHistoryIndex(prev => prev + 1);
-      } else {
-          socket.emit('start_quiz', { roomCode, subject: "Continued", topics: selectedTopics, forceNew: false });
-      }
-  };
-  
+  const unlockAudio = () => { if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)(); if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume(); };
   const handleLogout = () => { localStorage.removeItem("bs_room"); localStorage.removeItem("bs_user"); window.location.reload(); };
   const joinRoom = () => { if (username && roomCode) { setQuizHistory([]); socket.emit('join_room', { roomCode, username }); } else toast.error("Enter Details"); };
+  const handleAnswer = (opt, index) => { setSelectedOptionIndex(index); socket.emit('submit_answer', { roomCode, answerIndex: index, username }); };
+  const navPrev = () => { socket.emit('nav_prev', { roomCode }); setHistoryIndex(prev => Math.max(0, prev - 1)); };
+  const handleSmartNext = () => { if (isHistoryMode && historyIndex < historyLength - 1) { socket.emit('nav_next', { roomCode }); setHistoryIndex(prev => prev + 1); } else { socket.emit('start_quiz', { roomCode, subject: "Continued", topics: selectedTopics, forceNew: false }); } };
   const setLimitAndOpenMenu = (limit) => { setQuestionLimit(limit.toString()); setMenuOpen(true); if (document.activeElement) document.activeElement.blur(); };
-  
-  const handleStart = () => {
-      if (gameState === 'lobby' && selectedTopics.length === 0) return toast.error("Select at least 1 topic!");
-      setGameState('loading');
-      setMenuOpen(false); 
-      const safeLimit = questionLimit.trim() === "" ? -1 : parseInt(questionLimit);
-      socket.emit('start_quiz', { roomCode, subject: expandedSubject === 'physics' ? "Engineering Physics-II" : "Applied Mathematics-II", topics: selectedTopics, limit: isNaN(safeLimit) ? 10 : safeLimit, forceNew: true });
-  };
-
+  const handleStart = () => { if (gameState === 'lobby' && selectedTopics.length === 0) return toast.error("Select at least 1 topic!"); setGameState('loading'); setMenuOpen(false); const safeLimit = questionLimit.trim() === "" ? -1 : parseInt(questionLimit); socket.emit('start_quiz', { roomCode, subject: expandedSubject === 'physics' ? "Engineering Physics-II" : "Applied Mathematics-II", topics: selectedTopics, limit: isNaN(safeLimit) ? 10 : safeLimit, forceNew: true }); };
   const startRecording = async () => { try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorderRef.current = new MediaRecorder(stream); audioChunksRef.current = []; mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); }; mediaRecorderRef.current.onstop = () => { const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); const reader = new FileReader(); reader.readAsDataURL(audioBlob); reader.onloadend = () => { const msg = { username, text: "", image: null, audio: reader.result, time: new Date().toLocaleTimeString() }; setMessages(prev => [...prev, msg]); socket.emit('send_message', { roomCode, ...msg }); }; stream.getTracks().forEach(track => track.stop()); }; mediaRecorderRef.current.start(); setRecState('holding'); setRecTime(0); setRecStartTime(Date.now()); if (recTimerRef.current) clearInterval(recTimerRef.current); recTimerRef.current = setInterval(() => setRecTime(t => t + 1), 1000); } catch (err) { toast.error("Microphone access denied!"); } };
   const stopRecordingAndSend = () => { if (Date.now() - recStartTime < 300 && recState === 'holding') { setRecState('locked'); return; } if (mediaRecorderRef.current && (recState === 'holding' || recState === 'locked')) { mediaRecorderRef.current.onstop = () => { const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); const reader = new FileReader(); reader.readAsDataURL(audioBlob); reader.onloadend = () => { const msg = { username, text: "", image: null, audio: reader.result, time: new Date().toLocaleTimeString() }; setMessages(prev => [...prev, msg]); socket.emit('send_message', { roomCode, ...msg }); }; }; mediaRecorderRef.current.stop(); } resetRecUI(); };
   const cancelRecording = () => { if (mediaRecorderRef.current) mediaRecorderRef.current.stop(); resetRecUI(); toast("Discarded 🗑️"); };
@@ -332,6 +177,53 @@ function App() {
   const toggleSubject = (sub) => { if(expandedSubject === sub) { setExpandedSubject(null); } else { setExpandedSubject(sub); } };
   const downloadPDF = () => { if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save."); const doc = new jsPDF(); let y = 20; doc.setFontSize(22); doc.text("BrainSync - Quiz Report", 20, y); y += 10; doc.setFontSize(10); doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y); y += 20; quizHistory.forEach((q, i) => { if(y > 270) { doc.addPage(); y = 20; } let plainQ = q.question.replace(/\$/g, ''); doc.text(`Q${i+1}. ${plainQ}`, 20, y); y += 10; q.options.forEach((opt, idx) => { if(y > 280) { doc.addPage(); y = 20; } let plainOpt = opt.replace(/\$/g, ''); doc.text(`   (${getLetter(idx)}) ${plainOpt}`, 20, y); y += 6; }); y += 8; }); doc.save("BrainSync_Quiz.pdf"); toast.success("PDF Downloaded! 📥"); };
   const formatRecTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
+
+  useEffect(() => { if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); unlockAudio(); } }, []);
+
+  useEffect(() => {
+    socket.on('set_role', ({ role }) => { setRole(role); if (gameState === 'menu') setGameState('lobby'); localStorage.setItem("bs_room", roomCode); localStorage.setItem("bs_user", username); unlockAudio(); });
+    socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
+    
+    // 🟢 SAFE DATA HANDLER (Prevents White Screen Crash)
+    socket.on('new_question', (data) => {
+      try {
+          const cleanData = sanitizeQuestionData(data);
+          if(!cleanData) throw new Error("Invalid Data");
+          setQuestion(cleanData);
+          setQuestionsAnsweredCount(prev => {
+              const newCount = prev + 1;
+              if (newCount > 1 && newCount % 5 === 1 && role === 'member') setShowAd(true);
+              return newCount;
+          });
+          setRoundResult(null); setSelectedOptionIndex(null); setGameState('playing'); setIsHistoryMode(false); setHistoryLength(prev => prev + 1); setHistoryIndex(prev => prev + 1);
+      } catch (e) {
+          console.error("Crash prevented:", e);
+          setGameState('lobby');
+          toast.error("Question Error. Trying again...");
+          // Optional: Auto-request new question or just stay in lobby
+      }
+    });
+
+    socket.on('lock_host', () => setCanMoveOn(false));
+    socket.on('unlock_host', () => { if(!canMoveOn) toast.success("Unlocked! 🔓"); setCanMoveOn(true); });
+    socket.on('timer_update', (t) => setTimer(t));
+    socket.on('update_scores', (s) => setScores(s));
+    socket.on('progress_update', (data) => { setStudentProgress(data); });
+    
+    socket.on('round_result', (data) => { 
+        const cleanData = { ...data, explanation: sanitizeText(data.explanation), correctAnswer: sanitizeText(data.correctAnswer) };
+        setRoundResult(cleanData); setGameState('result'); if(data.isReview) setIsHistoryMode(true); 
+    });
+
+    socket.on('host_notification', ({ type, username }) => { toast(`${username}: ${type === 'stuck' ? 'Stuck 🤷' : 'Help!'}`, { icon: '📣' }); });
+    socket.on('cheat_alert', ({ username }) => { toast.error(`⚠️ ${username} tab switched!`); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); });
+    socket.on('receive_message', (msg) => { setMessages(prev => [...prev, msg]); if(!chatOpen) toast("New Message 💬", { icon: '💬' }); });
+    socket.on('game_over', ({ scores, history }) => { setGameState('lobby'); toast("Quiz Ended! 🏁"); setScores(scores); setQuizHistory(history || []); });
+    const handleVisibilityChange = () => { if (document.hidden && gameState === 'playing' && role === 'member') socket.emit('tab_switch', { roomCode, username }); };
+    document.addEventListener("visibilitychange", handleVisibilityChange); return () => { socket.off(); document.removeEventListener("visibilitychange", handleVisibilityChange); };
+  }, [gameState, role, roomCode, username, chatOpen, canMoveOn]);
+
+  useEffect(() => { if (messagesEndRef.current) { messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); } }, [messages, chatOpen]);
 
   return (
     <div className="app-container">
@@ -405,100 +297,9 @@ function App() {
 
       {gameState !== 'menu' && !menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
       {gameState !== 'menu' && !chatOpen && <button className="chat-btn" onClick={() => setChatOpen(!chatOpen)}>💬</button>}
-      
-      {gameState !== 'menu' && !chatOpen && (
-         <>
-            <button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>
-            {profileOpen && (
-               <div className="profile-menu">
-                  <h4 style={{margin:'0 0 10px 0', borderBottom:'1px solid #444', paddingBottom:5}}>{username}</h4>
-                  <div style={{fontSize:12, color:'#aaa', marginBottom:15}}>Room: {roomCode}</div>
-                  <div style={{fontSize:12, color:'#aaa', marginBottom:15}}>Role: {role.toUpperCase()}</div>
-                  <button onClick={handleLogout} style={{width:'100%', background:'#FF3B30', border:'none', color:'white', padding:10, borderRadius:10, cursor:'pointer', fontWeight: 600}}>Logout 🚪</button>
-               </div>
-            )}
-         </>
-      )}
-
-      {menuOpen && (
-        <div className="sidebar">
-          <div style={{display:'flex', justifyContent:'space-between', marginBottom:20, alignItems:'center', marginTop:10}}>
-             <h3 style={{margin: 0}}>Syllabus</h3>
-             <button onClick={()=>setMenuOpen(false)} style={{background:'none', border:'none', color:'white', fontSize:28, cursor:'pointer'}}>×</button>
-          </div>
-          <div style={{marginBottom:20}}>
-             <button className="option-btn" onClick={() => toggleSubject('math')} style={{width:'100%', marginBottom:10, minHeight:'auto'}}>Applied Mathematics-II {expandedSubject === 'math' ? '▼' : '▶'}</button>
-             {expandedSubject === 'math' && (<div className="sub-list">{SYLLABUS_MATH.map(m => (<div key={m.id} className="topic-row" onClick={() => toggleTopic(m.prompt)}><input type="checkbox" readOnly checked={selectedTopics.includes(m.prompt)} /><span>{m.name}</span></div>))}</div>)}
-             <button className="option-btn" onClick={() => toggleSubject('physics')} style={{width:'100%', marginBottom:10, minHeight:'auto'}}>Engineering Physics-II {expandedSubject === 'physics' ? '▼' : '▶'}</button>
-             {expandedSubject === 'physics' && (<div className="sub-list">{SYLLABUS_PHYSICS.map(m => (<div key={m.id} className="topic-row" onClick={() => toggleTopic(m.prompt)}><input type="checkbox" readOnly checked={selectedTopics.includes(m.prompt)} /><span>{m.name}</span></div>))}</div>)}
-          </div>
-          <div style={{display:'flex', gap:10, marginTop: 20}}>
-              <button onClick={handleStart} style={{flex:1, padding: '12px', background: selectedTopics.length > 0 ? '#0A84FF' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>🚀 Start Quiz</button>
-              <button onClick={() => setMenuOpen(false)} style={{width: '80px', padding: '12px', background: '#34C759', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px'}}>✅</button>
-          </div>
-        </div>
-      )}
-
-      {chatOpen && (
-          <div className="chat-sidebar">
-             <div className="chat-header">
-                <h3 style={{margin: 0}}>Group Chat</h3>
-                <button onClick={() => setChatOpen(false)} style={{background:'none', border:'none', color:'#0A84FF', fontSize:28, cursor:'pointer'}}>×</button>
-             </div>
-             <div className="chat-messages">
-                {messages.map((m, i) => (
-                   <div key={i} className={`msg-bubble ${m.username === username ? 'mine' : ''}`}>
-                      <div className="msg-user">{m.username} • {m.time}</div>
-                      {m.text && <div>{m.text}</div>}
-                      {m.image && <img src={m.image} className="msg-img" onClick={() => window.open(m.image)} />}
-                      {m.audio && <audio src={m.audio} controls className="msg-audio" />}
-                   </div>
-                ))}
-                <div ref={messagesEndRef} />
-             </div>
-             <div className="chat-input-area" onTouchMove={handleTouchMove}>
-                {recState === 'locked' ? (
-                    <div className="rec-locked-container">
-                        <button onClick={cancelRecording} style={{background:'none', border:'none', color:'#FF3B30', fontSize:'20px'}}>❌</button>
-                        <div className="rec-timer-container">
-                            <div className="rec-wave">
-                                <div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div>
-                            </div>
-                            <span>{formatRecTime(recTime)}</span>
-                        </div>
-                        <button onClick={stopRecordingAndSend} className="send-btn" style={{background:'#0A84FF', borderRadius:'50%', width:'40px', height:'40px'}}>➤</button>
-                    </div>
-                ) : (
-                    <>
-                        {showCamOptions && (
-                            <div className="cam-popup">
-                                <button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button>
-                                <button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button>
-                            </div>
-                        )}
-                        <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} />
-                        <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} />
-                        <button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button>
-                        <input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />
-                        {chatInput.trim() !== "" ? (
-                            <button className="send-btn" onClick={sendMessage}>↑</button>
-                        ) : (
-                            <button 
-                                className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"}
-                                onMouseDown={startRecording}
-                                onMouseUp={stopRecordingAndSend}
-                                onMouseLeave={stopRecordingAndSend}
-                                onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
-                                onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}
-                            >
-                                🎙️
-                            </button>
-                        )}
-                    </>
-                )}
-             </div>
-          </div>
-      )}
+      {gameState !== 'menu' && !chatOpen && (<><button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>{profileOpen && (<div className="profile-menu"><h4 style={{margin:'0 0 10px 0', borderBottom:'1px solid #444', paddingBottom:5}}>{username}</h4><div style={{fontSize:12, color:'#aaa', marginBottom:15}}>Room: {roomCode}</div><div style={{fontSize:12, color:'#aaa', marginBottom:15}}>Role: {role.toUpperCase()}</div><button onClick={handleLogout} style={{width:'100%', background:'#FF3B30', border:'none', color:'white', padding:10, borderRadius:10, cursor:'pointer', fontWeight: 600}}>Logout 🚪</button></div>)}</>)}
+      {menuOpen && (<div className="sidebar"><div style={{display:'flex', justifyContent:'space-between', marginBottom:20, alignItems:'center', marginTop:10}}><h3 style={{margin: 0}}>Syllabus</h3><button onClick={()=>setMenuOpen(false)} style={{background:'none', border:'none', color:'white', fontSize:28, cursor:'pointer'}}>×</button></div><div style={{marginBottom:20}}><button className="option-btn" onClick={() => toggleSubject('math')} style={{width:'100%', marginBottom:10, minHeight:'auto'}}>Applied Mathematics-II {expandedSubject === 'math' ? '▼' : '▶'}</button>{expandedSubject === 'math' && (<div className="sub-list">{SYLLABUS_MATH.map(m => (<div key={m.id} className="topic-row" onClick={() => toggleTopic(m.prompt)}><input type="checkbox" readOnly checked={selectedTopics.includes(m.prompt)} /><span>{m.name}</span></div>))}</div>)}<button className="option-btn" onClick={() => toggleSubject('physics')} style={{width:'100%', marginBottom:10, minHeight:'auto'}}>Engineering Physics-II {expandedSubject === 'physics' ? '▼' : '▶'}</button>{expandedSubject === 'physics' && (<div className="sub-list">{SYLLABUS_PHYSICS.map(m => (<div key={m.id} className="topic-row" onClick={() => toggleTopic(m.prompt)}><input type="checkbox" readOnly checked={selectedTopics.includes(m.prompt)} /><span>{m.name}</span></div>))}</div>)}</div><div style={{display:'flex', gap:10, marginTop: 20}}><button onClick={handleStart} style={{flex:1, padding: '12px', background: selectedTopics.length > 0 ? '#0A84FF' : '#444', color: selectedTopics.length > 0 ? 'white' : '#888', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', cursor: selectedTopics.length > 0 ? 'pointer' : 'not-allowed'}}>🚀 Start Quiz</button><button onClick={() => setMenuOpen(false)} style={{width: '80px', padding: '12px', background: '#34C759', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px'}}>✅</button></div></div>)}
+      {chatOpen && (<div className="chat-sidebar"><div className="chat-header"><h3 style={{margin: 0}}>Group Chat</h3><button onClick={() => setChatOpen(false)} style={{background:'none', border:'none', color:'#0A84FF', fontSize:28, cursor:'pointer'}}>×</button></div><div className="chat-messages">{messages.map((m, i) => (<div key={i} className={`msg-bubble ${m.username === username ? 'mine' : ''}`}><div className="msg-user">{m.username} • {m.time}</div>{m.text && <div>{m.text}</div>}{m.image && <img src={m.image} className="msg-img" onClick={() => window.open(m.image)} />}{m.audio && <audio src={m.audio} controls className="msg-audio" />}</div>))}<div ref={messagesEndRef} /></div><div className="chat-input-area" onTouchMove={handleTouchMove}>{recState === 'locked' ? (<div className="rec-locked-container"><button onClick={cancelRecording} style={{background:'none', border:'none', color:'#FF3B30', fontSize:'20px'}}>❌</button><div className="rec-timer-container"><div className="rec-wave"><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div><div className="rec-bar"></div></div><span>{formatRecTime(recTime)}</span></div><button onClick={stopRecordingAndSend} className="send-btn" style={{background:'#0A84FF', borderRadius:'50%', width:'40px', height:'40px'}}>➤</button></div>) : (<>{showCamOptions && (<div className="cam-popup"><button onClick={() => { cameraInputRef.current.click(); setShowCamOptions(false); }}>📸 Camera</button><button onClick={() => { fileInputRef.current.click(); setShowCamOptions(false); }}>📁 Upload File</button></div>)}<input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{display:'none'}} onChange={handleImageUpload} /><input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={handleImageUpload} /><button className="icon-btn" onClick={() => setShowCamOptions(!showCamOptions)}>📎</button><input className="chat-input-field" placeholder="Message..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} />{chatInput.trim() !== "" ? (<button className="send-btn" onClick={sendMessage}>↑</button>) : (<button className={recState === 'holding' ? "mic-btn-hold" : "mic-btn"} onMouseDown={startRecording} onMouseUp={stopRecordingAndSend} onMouseLeave={stopRecordingAndSend} onTouchStart={(e) => { e.preventDefault(); startRecording(); }} onTouchEnd={(e) => { e.preventDefault(); stopRecordingAndSend(); }}>🎙️</button>)}</>)}</div></div>)}
 
       {/* MAIN GAME UI */}
       <div style={{display:'flex', flexDirection:'column', alignItems:'center', width:'100%'}}>
