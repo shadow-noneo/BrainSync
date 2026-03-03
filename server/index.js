@@ -31,8 +31,18 @@ function cleanLatex(str) {
     s = s.split('f\\cdot').join('\\cdot');
     s = s.split('f\\beta').join('\\beta');
     s = s.split('f\\alpha').join('\\alpha');
+    s = s.split('f\\partial').join('\\partial');
+    s = s.split('f\\d').join('\\d');
     s = s.split('egin{').join('\\begin{');
     s = s.split('end{').join('\\end{');
+    s = s.split('infty').join('\\infty');
+    s = s.split('\\\\infty').join('\\infty');
+    s = s.split('int0').join('\\int_0');
+    s = s.split('int_{0}').join('\\int_{0}');
+    s = s.split('cdot').join('\\cdot');
+    s = s.split('partial').join('\\partial');
+    s = s.split('Gamma(').join('\\Gamma(');
+    s = s.split('\\\\Gamma').join('\\Gamma');
     return s.trim();
 }
 
