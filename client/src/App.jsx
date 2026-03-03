@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import 'katex/dist/katex.min.css'; 
 import { InlineMath } from 'react-katex';
@@ -15,60 +15,30 @@ document.getElementsByTagName('head')[0].appendChild(link);
 
 const socket = io.connect("https://brainsync-server.onrender.com"); 
 
-// 🟢 1. YOUR REAL GOOGLE AD COMPONENT
-const GoogleAd = () => {
-    useEffect(() => {
-        try {
-            if(window.adsbygoogle) (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) { console.error("AdSense Error:", e); }
-    }, []);
-
-    return (
-        <div style={{ overflow: 'hidden', width: '100%', minHeight: '280px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '20px 0' }}>
-            <ins className="adsbygoogle"
-                 style={{ display: 'block', width: '100%', height: '100%' }}
-                 data-ad-client="ca-pub-4572026782484804" 
-                 data-ad-slot="2420129524" 
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
+// 🟢 CRASH GUARD: Prevents White Screen if Math fails
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError(error) { return { hasError: true }; }
+  componentDidCatch(error, errorInfo) { console.error("CRASH REPORT:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{padding: 20, color: 'white', textAlign: 'center'}}>
+          <h2>⚠️ Display Error</h2>
+          <p>Something went wrong rendering this question.</p>
+          <button onClick={() => window.location.reload()} style={{padding: 10, marginTop: 10, background:'#333', color:'white', border:'1px solid #555', borderRadius:5}}>Reload App</button>
         </div>
-    );
-};
+      );
+    }
+    return this.props.children; 
+  }
+}
 
-// 🟢 2. AD OVERLAY
-const AdOverlay = ({ onFinish }) => {
-    const [timeLeft, setTimeLeft] = useState(15); 
-
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    onFinish();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    return (
-        <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'white', padding: '20px', boxSizing: 'border-box'}}>
-            <h2 style={{color:'#FFD60A', marginBottom: 10}}>💰 SPONSORED BREAK 💰</h2>
-            <p style={{color:'#aaa', marginBottom: 20}}>Please wait for the next question...</p>
-            <div style={{width: '100%', maxWidth: '500px'}}><GoogleAd /></div>
-            <div style={{fontSize:'20px', fontWeight:'bold', marginTop: 20}}>Resuming in {timeLeft}s...</div>
-            {timeLeft === 0 && <button onClick={onFinish} style={{padding:'12px 30px', marginTop:20, background:'#34C759', color:'white', border:'none', borderRadius:12, fontSize: 18, fontWeight: 'bold', cursor: 'pointer'}}>Skip ➤</button>}
-        </div>
-    );
-};
-
-// 🟢 SAFEST SANITIZER (Prevents f\frac bug)
+// 🟢 MATH SANITIZER (Kept to prevent f\frac bug)
 const sanitizeText = (text) => {
     if (!text) return "";
     return String(text)
-        .replace(/f\\frac/g, '\\frac') // Specific fix for your bug
+        .replace(/f\\frac/g, '\\frac')  
         .replace(/\\f/g, 'f')            
         .replace(/rac\{/g, '\\frac{')    
         .replace(/\\left\s+/g, '\\left')
@@ -80,19 +50,18 @@ const sanitizeQuestionData = (data) => {
     if (!data) return null;
     return {
         ...data,
-        question: sanitizeText(data?.question || ""),
-        // Ensure options is ALWAYS an array to prevent crash
-        options: Array.isArray(data?.options) ? data.options.map(o => sanitizeText(o)) : ["Error Loading Options", "Try Next Question", "", ""],
+        question: sanitizeText(data?.question || "Error Loading Question"),
+        options: Array.isArray(data?.options) ? data.options.map(o => sanitizeText(o)) : ["Error", "Error", "Error", "Error"],
         answer: sanitizeText(data?.answer || ""),
         explanation: sanitizeText(data?.explanation || "")
     };
 };
 
 const MathText = ({ text }) => {
-  if (!text) return null;
+  if (!text) return <span>...</span>;
   try {
-      // Double clean inside renderer to be safe
-      let cleanText = sanitizeText(text);
+      let cleanText = sanitizeText(text)
+         .replace(/f\\frac/g, '\\frac').replace(/\\f/g, 'f').replace(/\f/g, '').replace(/rac\{/g, '\\frac{').replace(/\\rac\{/g, '\\frac{').replace(/ight/g, '\\right').replace(/eft/g, '\\left').replace(/int/g, '\\int').replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$').replace(/\$\$/g, '$');
       const parts = cleanText.split('$');
       return (
         <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>
@@ -107,14 +76,11 @@ const MathText = ({ text }) => {
 };
 
 const compressImage = (file, callback) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
+    const reader = new FileReader(); reader.readAsDataURL(file);
     reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
+        const img = new Image(); img.src = event.target.result;
         img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
             const maxWidth = 800; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize;
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height); callback(canvas.toDataURL('image/jpeg', 0.6));
         }
@@ -152,8 +118,6 @@ function App() {
   const [canMoveOn, setCanMoveOn] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [studentProgress, setStudentProgress] = useState({ submitted: 0, total: 0 });
-  const [showAd, setShowAd] = useState(false);
-  const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0);
 
   const mediaRecorderRef = useRef(null); const audioChunksRef = useRef([]); const audioContextRef = useRef(null); const roomInputRef = useRef(null); const fileInputRef = useRef(null); const cameraInputRef = useRef(null); const messagesEndRef = useRef(null); const recTimerRef = useRef(null);
 
@@ -184,23 +148,17 @@ function App() {
     socket.on('set_role', ({ role }) => { setRole(role); if (gameState === 'menu') setGameState('lobby'); localStorage.setItem("bs_room", roomCode); localStorage.setItem("bs_user", username); unlockAudio(); });
     socket.on('error_message', (msg) => { toast.error(msg); handleLogout(); });
     
-    // 🟢 SAFE DATA HANDLER (Prevents White Screen Crash)
+    // 🟢 SAFE DATA HANDLER (No Ads)
     socket.on('new_question', (data) => {
       try {
           const cleanData = sanitizeQuestionData(data);
-          if(!cleanData) throw new Error("Invalid Data");
+          if(!cleanData || !cleanData.options) throw new Error("Invalid Data");
           setQuestion(cleanData);
-          setQuestionsAnsweredCount(prev => {
-              const newCount = prev + 1;
-              if (newCount > 1 && newCount % 5 === 1 && role === 'member') setShowAd(true);
-              return newCount;
-          });
           setRoundResult(null); setSelectedOptionIndex(null); setGameState('playing'); setIsHistoryMode(false); setHistoryLength(prev => prev + 1); setHistoryIndex(prev => prev + 1);
       } catch (e) {
           console.error("Crash prevented:", e);
           setGameState('lobby');
           toast.error("Question Error. Trying again...");
-          // Optional: Auto-request new question or just stay in lobby
       }
     });
 
@@ -226,9 +184,9 @@ function App() {
   useEffect(() => { if (messagesEndRef.current) { messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); } }, [messages, chatOpen]);
 
   return (
+    <ErrorBoundary>
     <div className="app-container">
       <Toaster position="top-center" />
-      {showAd && <AdOverlay onFinish={() => setShowAd(false)} />}
       
       <style>{`
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; background: #1a1a1a; color: white; font-family: -apple-system, sans-serif; }
@@ -358,6 +316,7 @@ function App() {
         {gameState !== 'menu' && Object.keys(scores).length > 0 && (<div className="card" style={{marginTop:20, background:'#1c1c1e', border:'1px solid rgba(255,255,255,0.1)'}}><h3 style={{borderBottom:'1px solid rgba(255,255,255,0.1)', paddingBottom:15, marginTop: 0}}>🏆 Live Scores</h3>{Object.entries(scores).sort((a,b)=>b[1]-a[1]).map(([u, s], i) => (<div key={u} style={{display:'flex', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', color: i===0?'#FFD60A':'white', fontSize: 16}}><span>{i+1}. {u}</span><span style={{fontWeight:'bold'}}>{Number(s || 0)} Marks</span></div>))}</div>)}
       </div>
     </div>
+    </ErrorBoundary>
   );
 }
 export default App;

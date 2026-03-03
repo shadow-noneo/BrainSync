@@ -18,15 +18,14 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: "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" });
 const rooms = {}; 
 
-console.log("🚀 SERVER v38.0 - MATH SANITIZER & STRICT LOCK");
+console.log("🚀 SERVER v40.0 - CLEAN & STABLE");
 
-// 🟢 NEW: AGGRESSIVE MATH CLEANER
 function cleanLatex(str) {
     if (!str) return "";
     return String(str)
-        .replace(/f\\frac/g, '\\frac') // Fixes the specific bug in your screenshot
-        .replace(/\\f/g, 'f')           // Remove escaped f
-        .replace(/rac\{/g, '\\frac{')   // Fix broken frac
+        .replace(/f\\frac/g, '\\frac') // Fixes "f\frac" bug
+        .replace(/\\f/g, 'f')
+        .replace(/rac\{/g, '\\frac{')
         .replace(/\\left\s+/g, '\\left')
         .replace(/\\right\s+/g, '\\right')
         .trim();
@@ -43,8 +42,7 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
     RULES:
     1. Output ONLY valid JSON.
     2. Use standard LaTeX. DO NOT put random 'f' characters before commands.
-    3. Example: Use $\\frac{a}{b}$, NOT $f\\frac{a}{b}$.
-    4. Wrap the entire math expression in single dollar signs $.
+    3. Wrap the entire math expression in single dollar signs $.
 
     JSON Schema:
     {"question": "Calculate $ \\int x dx $", "options": ["$ x^2 $", "$ \\frac{x^2}{2} $"], "answer": "$ \\frac{x^2}{2} $", "explanation": "Power rule...", "marks": ${marks}, "topic": "${topic}", "exam_year": "May 2024"}`;
@@ -52,19 +50,18 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1) {
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
-        temperature: 0.5, // Lower temp for cleaner math
+        temperature: 0.5,
         response_format: { type: "json_object" } 
     });
     
     let data = JSON.parse(res.choices[0].message.content);
 
-    // 🟢 SANITIZE MATH DATA BEFORE SENDING
+    // 🟢 SERVER-SIDE CLEANING
     data.question = cleanLatex(data.question);
     data.options = data.options.map(o => cleanLatex(o));
     data.answer = cleanLatex(data.answer);
     data.explanation = cleanLatex(data.explanation);
 
-    // Clean options text (remove A., B. prefixes)
     const cleanOpts = data.options.map(o => {
         let str = String(o).trim();
         while (/^[A-Da-d]\s*[\.\)]\s*/.test(str)) str = str.replace(/^[A-Da-d]\s*[\.\)]\s*/, '').trim();
@@ -106,7 +103,6 @@ function broadcastProgress(roomCode) {
 }
 
 io.on('connection', (socket) => {
-  
   socket.on('rejoin_room', ({ roomCode, username }) => {
     if (rooms[roomCode]) {
       socket.join(roomCode);
@@ -143,8 +139,6 @@ io.on('connection', (socket) => {
       roomsJoined.forEach(roomCode => {
           if (rooms[roomCode]) {
               rooms[roomCode].users = rooms[roomCode].users.filter(u => u.id !== socket.id);
-              // Clean up submissions if user left (optional, keeps count accurate)
-              // rooms[roomCode].submittedUsers.delete(... find username ...); 
               broadcastProgress(roomCode);
           }
       });
@@ -193,7 +187,6 @@ io.on('connection', (socket) => {
     }, 1000);
   });
 
-  // 🟢 SERVER-SIDE LOCK: Host cannot skip unless everyone submitted OR it's a review
   socket.on('nav_next', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
@@ -202,7 +195,6 @@ io.on('connection', (socket) => {
     const submittedCount = room.submittedUsers.size;
     const isLatestQuestion = room.historyIndex === room.history.length - 1;
 
-    // Only block if we are on the latest question AND not everyone has answered
     if (isLatestQuestion && submittedCount < totalStudents) {
         if (room.hostId) io.to(room.hostId).emit('error_message', "Wait for all students to answer!");
         return;
@@ -212,8 +204,6 @@ io.on('connection', (socket) => {
         room.historyIndex++;
         io.to(roomCode).emit('new_question', room.history[room.historyIndex]);
         io.to(roomCode).emit('round_result', { correctIndex: room.history[room.historyIndex].correctIndex, correctAnswer: room.history[room.historyIndex].answer, explanation: room.history[room.historyIndex].explanation, isReview: true });
-    } else {
-        // Only allow generating NEW question if conditions met (handled by client calling start_quiz, but we can double check)
     }
   });
   
@@ -239,7 +229,6 @@ io.on('connection', (socket) => {
        io.to(roomCode).emit('update_scores', room.scores);
     }
     
-    // Auto-unlock if everyone finished
     const totalStudents = Math.max(0, room.users.length - 1);
     if (room.submittedUsers.size >= totalStudents) {
         room.canMoveOn = true;
