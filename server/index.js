@@ -23,17 +23,16 @@ console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loade
 function cleanLatex(str) {
     if (!str) return "";
     let s = String(str);
-    s = s.replace(/f\\frac/g, '\\frac');
-    s = s.replace(/f\\Gamma/g, '\\Gamma');
-    s = s.replace(/f\\int/g, '\\int');
-    s = s.replace(/f\\sum/g, '\\sum');
-    s = s.replace(/f\\sqrt/g, '\\sqrt');
-    s = s.replace(/f\\cdot/g, '\\cdot');
-    s = s.replace(/egin\{/g, '\\begin{');
-    s = s.replace(/end\{/g, '\\end{');
-    s = s.replace(/\\int f\\frac/g, '\\int \\frac');
-    s = s.replace(/\\left\s+/g, '\\left');
-    s = s.replace(/\\right\s+/g, '\\right');
+    s = s.split('f\\frac').join('\\frac');
+    s = s.split('f\\Gamma').join('\\Gamma');
+    s = s.split('f\\int').join('\\int');
+    s = s.split('f\\sum').join('\\sum');
+    s = s.split('f\\sqrt').join('\\sqrt');
+    s = s.split('f\\cdot').join('\\cdot');
+    s = s.split('f\\beta').join('\\beta');
+    s = s.split('f\\alpha').join('\\alpha');
+    s = s.split('egin{').join('\\begin{');
+    s = s.split('end{').join('\\end{');
     return s.trim();
 }
 
