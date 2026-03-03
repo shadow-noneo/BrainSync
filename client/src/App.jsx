@@ -42,7 +42,6 @@ const sanitizeQuestionData = (data) => {
         explanation: sanitizeText(data?.explanation || "")
     };
 };
-const getCorrectIndex = () => roundResult?.correctIndex ?? 0;
 const getLetter = (i) => ["A", "B", "C", "D"][i] ?? "?";
 const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -117,6 +116,7 @@ function App() {
   const handleImageUpload = (e) => { setShowCamOptions(false); if(e.target.files[0]) compressImage(e.target.files[0], (dataUrl) => { const msg = { username, text: "", image: dataUrl, audio: null, time: new Date().toLocaleTimeString() }; setMessages(prev => [...prev, msg]); socket.emit('send_message', { roomCode, ...msg }); }); };
   const toggleTopic = (prompt) => { setSelectedTopics(prev => prev.includes(prompt) ? prev.filter(t => t !== prompt) : [...prev, prompt]); };
   const toggleSubject = (sub) => { if(expandedSubject === sub) { setExpandedSubject(null); } else { setExpandedSubject(sub); } };
+  const getCorrectIndex = () => roundResult?.correctIndex ?? 0;
   const downloadPDF = () => { if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save."); const doc = new jsPDF(); let y = 20; doc.setFontSize(22); doc.text("BrainSync - Quiz Report", 20, y); y += 10; doc.setFontSize(10); doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y); y += 20; quizHistory.forEach((q, i) => { if(y > 270) { doc.addPage(); y = 20; } let plainQ = q.question.replace(/\$/g, ''); doc.text(`Q${i+1}. ${plainQ}`, 20, y); y += 10; q.options.forEach((opt, idx) => { if(y > 280) { doc.addPage(); y = 20; } let plainOpt = opt.replace(/\$/g, ''); doc.text(`   (${getLetter(idx)}) ${plainOpt}`, 20, y); y += 6; }); y += 8; }); doc.save("BrainSync_Quiz.pdf"); toast.success("PDF Downloaded! 📥"); };
   const formatRecTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
 
