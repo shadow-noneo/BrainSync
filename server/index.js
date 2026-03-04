@@ -38,9 +38,12 @@ function cleanLatex(str) {
     s = s.split('f\\cos').join('\\cos');
     s = s.split('f\\tan').join('\\tan');
     s = s.split('f\\pi').join('\\pi');
+    s = s.split('f\\times').join('\\times');
+    s = s.split('imes').join('\\times');
     s = s.split('egin{').join('\\begin{');
-    s = s.split('\\end{').join('\\end{');
     s = s.split('Gamma(').join('\\Gamma(');
+    s = s.split('f\\vec').join('\\vec');
+    s = s.split('f\\hat').join('\\hat');
     return s.trim();
 }
 

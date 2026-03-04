@@ -168,11 +168,11 @@ function App() {
       
       <style>{`
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; background: #1a1a1a; color: white; font-family: -apple-system, sans-serif; }
-        .app-container { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 70px 20px 20px 20px; width: 100vw; box-sizing: border-box; }
+        .app-container { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 75px 20px 20px 20px; width: 100vw; box-sizing: border-box; }
         .top-header { position: fixed; top: 0; left: 0; right: 0; height: 55px; background: rgba(20,20,22,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 20000; }
         .top-header .logo-small { font-size: 1.3em; font-weight: 800; letter-spacing: -0.5px; }
         .top-header .header-right { display: flex; align-items: center; gap: 8px; }
-        .card { background: #222; padding: 2rem; border-radius: 16px; width: 100%; max-width: 750px; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.6); position: relative; max-height: calc(100vh - 90px); overflow-y: auto; }
+        .card { background: #222; padding: 2rem; border-radius: 16px; width: 100%; max-width: 750px; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.6); position: relative; max-height: calc(100vh - 100px); overflow-y: auto; }
         .logo { font-size: 2.5em; margin-bottom: 20px; text-shadow: 0 0 15px rgba(100,108,255,0.6); font-weight: 800; letter-spacing: -1px; }
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #444; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
