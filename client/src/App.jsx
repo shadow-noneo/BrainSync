@@ -192,12 +192,12 @@ function App() {
         .chat-btn { position: fixed; bottom: 25px; right: 25px; font-size: 26px; background: #0A84FF; color: white; width: 60px; height: 60px; border-radius: 50%; border: none; box-shadow: 0 8px 20px rgba(10, 132, 255, 0.4); z-index: 20000; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
         .chat-btn:hover { transform: scale(1.1); }
         .profile-menu { position: fixed; top: 60px; right: 15px; background: rgba(44, 44, 46, 0.95); border: 1px solid #555; padding: 15px; border-radius: 16px; z-index: 20001; width: 200px; }
-        .sidebar { position: fixed; top: 0; left: 0; width: 320px; height: 100dvh; background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
+        .sidebar { position: fixed; top: 55px; left: 0; width: 320px; height: calc(100dvh - 55px); background: #1c1c1e; padding: 20px; z-index: 20001; border-right: 1px solid #333; overflow-y: auto; box-sizing: border-box; }
         .sub-list { padding-left: 15px; border-left: 2px solid #444; margin-top: 5px; }
         .explanation-box { max-height: 250px; overflow-y: auto; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-top: 15px; border: 1px solid rgba(255,255,255,0.1); }
         .explanation-box::-webkit-scrollbar { width: 8px; }
         .explanation-box::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-        .chat-sidebar { position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
+        .chat-sidebar { position: fixed; top: 55px; right: 0; width: 350px; height: calc(100% - 55px); background: rgba(28, 28, 30, 0.95); z-index: 10002; border-left: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         .msg-bubble { background: #3a3a3c; padding: 10px 16px; border-radius: 18px; max-width: 80%; word-break: break-word; font-size: 15px; border-bottom-left-radius: 4px; }
@@ -236,11 +236,9 @@ function App() {
 
       {gameState !== 'menu' && (
         <div className="top-header">
+          <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
           <div className="logo-small">🧠 BrainSync</div>
-          <div className="header-right">
-            {!menuOpen && <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>}
-            <button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>
-          </div>
+          <button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>
         </div>
       )}
       {gameState !== 'menu' && !chatOpen && <button className="chat-btn" onClick={() => setChatOpen(!chatOpen)}>💬</button>}
