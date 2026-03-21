@@ -232,6 +232,7 @@ function App() {
         .topic-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #333; cursor: pointer; }
         .topic-row input { margin-right: 10px; width: 18px; height: 18px; accent-color: #0A84FF; }
         @keyframes galaxy { 100% { transform: rotate(360deg); } }
+        @keyframes brainPulse { 0%, 100% { filter: drop-shadow(0 0 20px rgba(100,108,255,0.8)) drop-shadow(0 0 40px rgba(94,92,230,0.4)); transform: scale(1); } 50% { filter: drop-shadow(0 0 60px rgba(100,108,255,1)) drop-shadow(0 0 100px rgba(94,92,230,0.9)); transform: scale(1.08); } }
         .galaxy-ring { width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0A84FF, #FF3B30, #FFD60A, #34C759, #0A84FF); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff 0); animation: galaxy 1s linear infinite; margin: 20px auto; }
         @media (max-width: 600px) { .chat-sidebar { width: 100%; } .grid { grid-template-columns: 1fr; } .menu-btn { font-size: 13px; padding: 6px 10px; } .profile-btn { width: 35px; height: 35px; } .chat-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; font-size: 22px; } .sidebar { width: 100%; max-width: 100%; border-right: none; } }
       `}</style>

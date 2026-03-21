@@ -394,6 +394,10 @@ function cleanLatex(str) {
   let s = String(str);
   // Fix f\frac and similar AI hallucinations
   s = s.split('f\\frac').join('\\frac');
+  s = s.split('f\\\\frac').join('\\\\frac');
+  // Also fix in raw strings
+  s = s.replace(/f\\frac/g, '\\frac');
+  s = s.replace(/f\\\\frac/g, '\\\\frac');
   s = s.split('f\\Gamma').join('\\Gamma');
   s = s.split('f\\int').join('\\int');
   s = s.split('f\\sum').join('\\sum');
@@ -498,6 +502,7 @@ function cleanLatex(str) {
   // Fix approx
   s = s.split('approx').join('\\approx');
   s = s.split('NAapprox').join('NA \\approx');
+  s = s.replace(/([A-Z][a-z]?)gg([a-z])/g, '$1 >> $2');
 
   // Fix text units
   s = s.split('extm').join('m');
