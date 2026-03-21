@@ -274,10 +274,10 @@ function App() {
         {/* QUESTION & RESULT */}
         {(gameState === 'playing' || gameState === 'result') && question && (
           <div className="card" style={{maxWidth: '800px'}}>
-            <div className="header-row">
+            {gameState !== 'result' && <div className="header-row">
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
-            </div>
+            </div>}
             {gameState !== 'result' && question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             {gameState !== 'result' && <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question?.question || "Loading..."} /></h3>}
             {gameState !== 'result' && question.exam_year && (<div style={{marginBottom:30, textAlign:'center', fontSize: '0.9em', color: '#FFD60A', border: '1px solid #FFD60A', display: 'inline-block', padding: '4px 10px', borderRadius: '15px', marginLeft: 'auto', marginRight: 'auto', display: 'table'}}>📚 Exam: {question.exam_year}</div>)}

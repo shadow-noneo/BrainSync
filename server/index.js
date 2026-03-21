@@ -392,72 +392,25 @@ console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loade
 function cleanLatex(str) {
   if (!str) return "";
   let s = String(str);
-  // Fix f\frac and similar AI hallucinations
-  s = s.split('f\\frac').join('\\frac');
-  s = s.split('f\\\\frac').join('\\\\frac');
-  // Also fix in raw strings
-  s = s.replace(/f\\frac/g, '\\frac');
-  s = s.replace(/f\\\\frac/g, '\\\\frac');
-  s = s.split('f\\Gamma').join('\\Gamma');
-  s = s.split('f\\int').join('\\int');
-  s = s.split('f\\sum').join('\\sum');
-  s = s.split('f\\prod').join('\\prod');
-  s = s.split('f\\sqrt').join('\\sqrt');
-  s = s.split('f\\lim').join('\\lim');
-  s = s.split('f\\sin').join('\\sin');
-  s = s.split('f\\cos').join('\\cos');
-  s = s.split('f\\tan').join('\\tan');
-  s = s.split('f\\log').join('\\log');
-  s = s.split('f\\ln').join('\\ln');
-  s = s.split('f\\alpha').join('\\alpha');
-  s = s.split('f\\beta').join('\\beta');
-  s = s.split('f\\sigma').join('\\sigma');
-  s = s.split('f\\omega').join('\\omega');
-  s = s.split('f\\theta').join('\\theta');
-  s = s.split('f\\pi').join('\\pi');
-  s = s.split('f\\lambda').join('\\lambda');
-  s = s.split('f\\mu').join('\\mu');
-  s = s.split('f\\delta').join('\\delta');
-  s = s.split('f\\partial').join('\\partial');
-  s = s.split('f\\nabla').join('\\nabla');
-  s = s.split('f\\infty').join('\\infty');
-  s = s.split('f\\cdot').join('\\cdot');
-  s = s.split('f\\times').join('\\times');
-  s = s.split('f\\div').join('\\div');
-  s = s.split('f\\pm').join('\\pm');
-  s = s.split('f\\leq').join('\\leq');
-  s = s.split('f\\geq').join('\\geq');
-  s = s.split('f\\neq').join('\\neq');
-  s = s.split('f\\approx').join('\\approx');
-  s = s.split('f\\in').join('\\in');
-  s = s.split('f\\subset').join('\\subset');
-  s = s.split('f\\cup').join('\\cup');
-  s = s.split('f\\cap').join('\\cap');
-  s = s.split('f\\vec').join('\\vec');
-  s = s.split('f\\hat').join('\\hat');
-  s = s.split('f\\bar').join('\\bar');
-  s = s.split('f\\dot').join('\\dot');
-  s = s.split('f\\ddot').join('\\ddot');
-  s = s.split('f\\text').join('\\text');
-  s = s.split('f\\mathrm').join('\\mathrm');
-  s = s.split('f\\mathbf').join('\\mathbf');
-  s = s.split('f\\left').join('\\left');
-  s = s.split('f\\right').join('\\right');
-  s = s.split('f\\begin').join('\\begin');
-  s = s.split('f\\end').join('\\end');
-  // Fix missing backslash
-  s = s.split('imes').join('\\times');
-  s = s.split('egin{').join('\\begin{');
-  s = s.split('Gamma(').join('\\Gamma(');
-  s = s.split('sigma}').join('\\sigma}');
-  s = s.split('frac{1}{sigma}').join('\\frac{1}{\\sigma}');
-  s = s.split('frac{1}{\\sigma}').join('\\frac{1}{\\sigma}');
-  
-  // Fix \text{} rendering as extX
-  s = s.split('extm^3').join('m^3');
-  s = s.split('extm^2').join('m^2');
-  s = s.split('extm^{3}').join('m^3');
-  s = s.split('extm^{2}').join('m^2');
+  // Nuclear fix: remove ANY letter 'f' before LaTeX backslash commands
+  s = s.replace(/f(\\(?:frac|sqrt|left|right|langle|rangle|hbar|psi|pi|sin|cos|tan|int|sum|prod|vec|hat|bar|cdot|times|div|pm|leq|geq|neq|approx|infty|partial|nabla|alpha|beta|gamma|delta|epsilon|sigma|omega|theta|lambda|mu|phi|chi|Gamma|Delta|Sigma|Omega|Theta|Lambda|Phi|Psi|text|mathrm|mathbf|begin|end|lim|max|min|log|ln|exp|over|under))/g, '$1');
+  // Fix missing backslashes
+  s = s.replace(/([^\\a-zA-Z{])langle/g, '$1\\langle');
+  s = s.replace(/([^\\a-zA-Z{])rangle/g, '$1\\rangle');
+  s = s.replace(/([^\\a-zA-Z])left\\(/g, '$1\\left(');
+  s = s.replace(/([^\\])left\s*\(/g, '$1\\left(');
+  s = s.replace(/ight\)/g, '\\right)');
+  s = s.replace(/ight\]/g, '\\right]');
+  s = s.replace(/sinleft/g, '\\sin\\left');
+  s = s.replace(/cosleft/g, '\\cos\\left');
+  s = s.replace(/tanleft/g, '\\tan\\left');
+  s = s.replace(/([^\\a-zA-Z])left\(/g, '$1\\left(');
+  // Fix psi, hbar without backslash
+  s = s.replace(/([^\\a-zA-Z])psi/g, '$1\\psi');
+  s = s.replace(/([^\\a-zA-Z])hbar/g, '$1\\hbar');
+  s = s.replace(/([^\\a-zA-Z])langle/g, '$1\\langle');
+  s = s.replace(/([^\\a-zA-Z])rangle/g, '$1\\rangle');
+  // Fix extm, extC etc
   s = s.split('extm').join('m');
   s = s.split('extC').join('C');
   s = s.split('extV').join('V');
@@ -466,68 +419,17 @@ function cleanLatex(str) {
   s = s.split('extJ').join('J');
   s = s.split('extK').join('K');
   s = s.split('extN').join('N');
-  s = s.split('extkg').join('kg');
-  s = s.split('exts').join('s');
-  s = s.split('Omegaextm').join('Ω·m');
-  s = s.split('Omega').join('Ω');
-  s = s.split('\\text{m}').join('m');
-  s = s.split('\\text{C}').join('C');
-  s = s.split('\\text{V}').join('V');
-  s = s.split('\\text{kg}').join('kg');
-  s = s.split('\\text{s}').join('s');
-  s = s.split('\\text{J}').join('J');
-  s = s.split('\\text{W}').join('W');
-  s = s.split('\\text{N}').join('N');
-  s = s.split('\\text{K}').join('K');
-  s = s.split('\\text{A}').join('A');
-  s = s.split('\\text{Hz}').join('Hz');
-  s = s.split('\\text{Pa}').join('Pa');
-  s = s.split('\\text{T}').join('T');
-  s = s.split('\\Omega').join('Ω');
-  s = s.split('\\mu m').join('μm');
-  s = s.split('\\mu s').join('μs');
-  
-  // Fix sin/cos/tan + theta combinations
+  s = s.split('Omegaextm').join('\\Omega\\cdot m');
+  // Fix sinheta, cosheta
   s = s.split('sinheta').join('\\sin\\theta');
   s = s.split('cosheta').join('\\cos\\theta');
   s = s.split('tanheta').join('\\tan\\theta');
-  s = s.split('sinθ').join('\\sin\\theta');
-  s = s.split('cosθ').join('\\cos\\theta');
-  s = s.split('tanθ').join('\\tan\\theta');
-
-  // Fix sqrt without braces — sqrt2.19 → \sqrt{2.19}
-  s = s.replace(/sqrt([0-9]+\.?[0-9]*)/g, '\\sqrt{$1}');
-  s = s.replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
-
   // Fix approx
-  s = s.split('approx').join('\\approx');
-  s = s.split('NAapprox').join('NA \\approx');
-  s = s.replace(/([A-Z][a-z]?)gg([a-z])/g, '$1 >> $2');
-
-  // Fix text units
-  s = s.split('extm').join('m');
-  s = s.split('extC').join('C');
-  s = s.split('extV').join('V');
-  s = s.split('extA').join('A');
-  s = s.split('extW').join('W');
-  s = s.split('extJ').join('J');
-  s = s.split('extK').join('K');
-  s = s.split('extN').join('N');
-  s = s.split('Omegaextm').join('Ω·m');
-  s = s.split('\\Omega').join('Ω');
-
-  // Fix missing backslash on common commands
-  s = s.replace(/([^\\])sqrt/g, '$1\\sqrt');
-  s = s.replace(/([^\\])theta/g, '$1\\theta');
-  s = s.replace(/([^\\])alpha/g, '$1\\alpha');
-  s = s.replace(/([^\\])beta/g, '$1\\beta');
-  s = s.replace(/([^\\])gamma/g, '$1\\gamma');
-  s = s.replace(/([^\\])lambda/g, '$1\\lambda');
-  s = s.replace(/([^\\])sigma/g, '$1\\sigma');
-  s = s.replace(/([^\\])omega/g, '$1\\omega');
-  s = s.replace(/([^\\])delta/g, '$1\\delta');
-  s = s.replace(/([^\\])pi([^a-z])/g, '$1\\pi$2');
-  s = s.replace(/([^\\])mu([^a-z])/g, '$1\\mu$2');
+  s = s.replace(/([^\\])approx/g, '$1\\approx');
+  // Fix imes (missing t from times)
+  s = s.split('imes').join('\\times');
+  // Fix egin (missing b from begin)
+  s = s.split('egin{').join('\\begin{');
   return s.trim();
 }
 
