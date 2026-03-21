@@ -1,267 +1,52 @@
-// BrainSync — Complete Syllabus
-// Mumbai University NEP 2020 Curriculum
-// Updated with all subjects
-
 export const SYLLABUS = {
-
-  // ── EXISTING SUBJECTS ────────────────────────────────────────
-  "Applied Mathematics-II": {
-    modules: [
-      "Module 1: Differential Equations of First Order",
-      "Module 2: Linear Differential Equations",
-      "Module 3: Laplace Transform",
-      "Module 4: Complex Variables",
-      "Module 5: Numerical Methods",
-      "Module 6: Vector Calculus"
-    ]
-  },
-
-  "Engineering Physics-II": {
-    modules: [
-      "Module 1: Quantum Mechanics",
-      "Module 2: Semiconductor Physics",
-      "Module 3: Superconductivity",
-      "Module 4: Lasers and Fiber Optics",
-      "Module 5: Nanotechnology",
-      "Module 6: Electrodynamics"
-    ]
-  },
-
-  // ── NEW SUBJECTS ─────────────────────────────────────────────
-
-  "Engineering Materials": {
-    code: "BSC2031",
-    modules: [
-      "Module 1: Alloys",
-      "Module 2: Ceramics",
-      "Module 3: Composites",
-      "Module 4: Plastics and Elastomers",
-      "Module 5: Advanced Polymers",
-      "Module 6: Nanomaterials"
-    ],
-    topics: {
-      "Module 1: Alloys": [
-        "Ferrous alloys — Plain-carbon steels, Heat and Shock resisting steels, Stainless steels",
-        "Effect of alloying elements: Ni, Cr, Co, Mn, Mo, W and V",
-        "Aluminium alloys — Composition, properties and uses: Duralumin, Magnalium",
-        "Copper alloys — Composition, properties and uses: Brass (Dutch Metal and German Silver), Bronze (Gun metal and Nickel bronze)",
-        "Alloys of Pb — Composition, properties and Uses: Wood's metal, Tinman's solder",
-        "Numerical based on Composition, density and weight of an alloy"
-      ],
-      "Module 2: Ceramics": [
-        "Introduction to Ceramics — Definition, types, properties and uses",
-        "Glass — Definition, Properties, Types with uses",
-        "Abrasives — Natural and Artificial Abrasives, Examples, Properties and Uses",
-        "Optical fibres — Definition, Components of optical transmission system",
-        "Advantages of optical fibre communication",
-        "Applications of glass-based fibre and optical fibres"
-      ],
-      "Module 3: Composites": [
-        "Types of Composites, sub-types and Applications: Fibre-reinforced composites",
-        "Layered-composites (Laminates)",
-        "Particulate-composites",
-        "Bio-composites — Definition, Classification and Applications"
-      ],
-      "Module 4: Plastics and Elastomers": [
-        "Introduction to Plastics — Thermoplastic and Thermosetting plastics",
-        "Compounding of plastics, Application of Plastics",
-        "Numerical based on Degree of polymerisation, Density and mass, tensile strength of polymer",
-        "Introduction to elastomers — structural requirement of elastomer",
-        "Natural rubber, processing of natural rubber, drawbacks, compounding of rubber",
-        "Synthesis of commercial polymers: PMMA, PTFE",
-        "Elastomers: Preparation, properties and uses of Polyurethane Rubber, Silicone rubber"
-      ],
-      "Module 5: Advanced Polymers": [
-        "Conducting polymers",
-        "Bio-polymers",
-        "Liquid crystal polymers",
-        "Intelligent (smart) polymers"
-      ],
-      "Module 6: Nanomaterials": [
-        "Definition, Types of Nanostructured materials",
-        "Applications of Nanomaterials",
-        "Graphene — properties and applications",
-        "Types of Carbon Nanotubes: SWCNTs and MWCNTs — Properties and Uses"
-      ]
-    }
-  },
-
-  "Engineering Graphics": {
-    code: "ESC201",
-    modules: [
-      "Module 0: Prerequisite",
-      "Module 1: Introduction to Engineering Drawing",
-      "Module 2: Projections of Points, Lines and Planes",
-      "Module 3: Projections of Solids",
-      "Module 4: Sections of Solids and Development of Surfaces",
-      "Module 5: Orthographic Projections",
-      "Module 6: Isometric Views"
-    ],
-    topics: {
-      "Module 0: Prerequisite": [
-        "Draw basic geometric shapes like pentagon, hexagon and square in different orientations",
-        "Divide a line into equal number of parts",
-        "Divide a circle into equal number of parts"
-      ],
-      "Module 1: Introduction to Engineering Drawing": [
-        "Introduction to Engineering Graphics and its significance in Engineering domain",
-        "Types of Lines, Dimensioning Systems as per IS conventions",
-        "Introduction to plain and diagonal scales",
-        "Engineering Curves: Basic construction of Cycloid, Involutes and Helix (cylinder only)"
-      ],
-      "Module 2: Projections of Points, Lines and Planes": [
-        "Projections of Points in any quadrants as well as resting on planes",
-        "Projections of Lines inclined to both reference planes (Excluding Traces of lines)",
-        "Simple application based problems on projection of lines",
-        "Projections of Planes: Triangular, Square, Rectangular, Pentagonal, Hexagonal and Circular inclined to both Reference Planes (Exclude composite planes)"
-      ],
-      "Module 3: Projections of Solids": [
-        "Projections of solids with axis inclined to one and both reference planes",
-        "Prism, pyramid, cylinder and cone only",
-        "Triangular to hexagonal prism and pyramids",
-        "Spheres, Composite, hollow solids and frustum of solids",
-        "Use change of position or Auxiliary plane method"
-      ],
-      "Module 4: Sections of Solids and Development of Surfaces": [
-        "Sections of Prism, Pyramid, Cylinder and Cone cut by plane perpendicular to at least one reference plane",
-        "Exclude Curved Section Plane",
-        "Use change of position or Auxiliary plane method",
-        "Development of lateral surface (only) of prism and pyramid only"
-      ],
-      "Module 5: Orthographic Projections": [
-        "Fundamentals of orthographic projections — quadrants, observer position, horizontal, vertical and profile plane",
-        "Symbol and IS conventions",
-        "Different orthographic views, First and Third angle method of projection",
-        "Views of a simple machine part as per the first angle projection method recommended by IS",
-        "Sectional Orthographic Projections — concept of section plane, section lines and features",
-        "Types of section and its representation, rib and web in section"
-      ],
-      "Module 6: Isometric Views": [
-        "Basic concept of isometric projection — why it is called isometric",
-        "Isometric and non-isometric lines, isometric axes and isometric scale",
-        "Difference between isometric projection and isometric views",
-        "Conversion of orthographic views to isometric views (Excluding sphere)"
-      ]
-    }
-  },
-
-  "Data Structure": {
-    code: "PCC2011",
-    modules: [
-      "Module 1: Introduction to Data Structures",
-      "Module 2: Stack",
-      "Module 3: Queue",
-      "Module 4: Linked List",
-      "Module 5: Tree",
-      "Module 6: Applications of Data Structures"
-    ],
-    topics: {
-      "Module 1: Introduction to Data Structures": [
-        "Introduction to Data Structures, Concept of ADT",
-        "Types of Data Structures — Linear, Nonlinear, Static, Dynamic",
-        "Operations on Data Structures",
-        "Concepts of Functions, Recursion, Arrays, Pointers, Structures and C programming constructs"
-      ],
-      "Module 2: Stack": [
-        "Introduction to Stack, Stack as ADT",
-        "ADT Operations on Stack, Array Implementation of Stack",
-        "Multiple Stacks",
-        "Evaluation of Arithmetic Expressions"
-      ],
-      "Module 3: Queue": [
-        "Introduction to Queue, ADT operations on Queue",
-        "Array Implementation of Queue",
-        "Types of Queues: Circular Queue, Priority Queue",
-        "Double Ended Queue and Multiple Queues"
-      ],
-      "Module 4: Linked List": [
-        "Concept of Linked Lists, Linked List vs Array",
-        "Types of Linked List — Singly linked lists, Doubly linked lists and Circular linked lists",
-        "Insertion, deletion, update and copying operations with Singly linked lists, Doubly linked lists",
-        "Implementation of Stack and Queue using linked list",
-        "Reversing a singly linked list"
-      ],
-      "Module 5: Tree": [
-        "Introduction to Trees, Tree Terminologies",
-        "Binary Tree, Binary Tree Representation, Types of Binary Tree",
-        "Binary Tree Traversals",
-        "Binary Search Tree — Insert, Delete, Search Operations on Binary Search Tree"
-      ],
-      "Module 6: Applications of Data Structures": [
-        "Stacks: Conversion of Arithmetic Expressions using Infix, Prefix and Postfix Notations",
-        "Reversing a String/List",
-        "Parentheses Checker",
-        "Trees: Representing expressions using Expression tree",
-        "Huffman Encoding"
-      ]
-    }
-  },
-
-  "Python Programming": {
-    code: "VSEC202",
-    modules: [
-      "Module 0: Prerequisite",
-      "Module 1: Introduction to Python",
-      "Module 2: Control Flow and Functions",
-      "Module 3: File Handling, Packaging and Debugging",
-      "Module 4: Object-Oriented Programming in Python",
-      "Module 5: Advanced Python Concepts",
-      "Module 6: Python Libraries"
-    ],
-    topics: {
-      "Module 0: Prerequisite": [
-        "Introduction to Programming: Understanding basic concepts like algorithms, flowcharts, and pseudocode",
-        "Problem-Solving Skills: Ability to approach problems methodically and apply logical thinking"
-      ],
-      "Module 1: Introduction to Python": [
-        "Basic Syntax and Data Types — Variables and data types, Operators, Input and output",
-        "Data Structures: list, tuple, set and dictionary",
-        "Understanding the Syntax Transition from C to Python"
-      ],
-      "Module 2: Control Flow and Functions": [
-        "Conditional Statements: if, else, elif",
-        "Loops: for and while loop",
-        "Functions — Defining functions, Parameters and return values",
-        "Scope and lifetime of variables"
-      ],
-      "Module 3: File Handling, Packaging and Debugging": [
-        "File Handling — Reading and writing files, Exception handling",
-        "Creating Python Packages, Modules and executable files",
-        "Dealing with Syntax Errors, Runtime Errors",
-        "Scientific Debugging"
-      ],
-      "Module 4: Object-Oriented Programming in Python": [
-        "Introduction to OOP: Classes and objects, Encapsulation, inheritance and polymorphism",
-        "Creating Classes and Objects: Class attributes and methods",
-        "Constructor and destructor",
-        "Type of Inheritance: Single, multiple and multilevel inheritance"
-      ],
-      "Module 5: Advanced Python Concepts": [
-        "Regular Expressions, Pattern matching",
-        "Regex functions in Python",
-        "GUI Development using any Python GUI framework"
-      ],
-      "Module 6: Python Libraries": [
-        "Introduction to Popular Libraries",
-        "NumPy for numerical computing",
-        "Pandas for data manipulation",
-        "Matplotlib for data visualization"
-      ]
-    }
-  }
-};
-
-// Helper to get all subject names
-export const SUBJECTS = Object.keys(SYLLABUS);
-
-// Helper to get modules for a subject
-export const getModules = (subject) => {
-  return SYLLABUS[subject]?.modules || [];
-};
-
-// Helper to get topics for a specific module
-export const getTopics = (subject, module) => {
-  return SYLLABUS[subject]?.topics?.[module] || [];
+  "Applied Mathematics-II": [
+    { id: "m1", name: "Module 1: Differential Equations of First Order", prompt: "Differential Equations of First Order: variable separable, exact, linear, Bernoulli equations, applications" },
+    { id: "m2", name: "Module 2: Linear Differential Equations", prompt: "Linear Differential Equations: complementary function, particular integral, variation of parameters, Cauchy and Legendre equations" },
+    { id: "m3", name: "Module 3: Laplace Transform", prompt: "Laplace Transform: standard results, derivatives, integrals, inverse Laplace, convolution theorem, solving ODEs" },
+    { id: "m4", name: "Module 4: Complex Variables", prompt: "Complex Variables: analytic functions, Cauchy-Riemann equations, harmonic functions, conformal mapping, bilinear transformation" },
+    { id: "m5", name: "Module 5: Numerical Methods", prompt: "Numerical Methods: Bisection, Newton-Raphson, Gauss elimination, Gauss-Seidel, Trapezoidal, Simpson's rule, Runge-Kutta" },
+    { id: "m6", name: "Module 6: Vector Calculus", prompt: "Vector Calculus: gradient, divergence, curl, line integral, surface integral, Green's theorem, Stokes theorem, Gauss divergence theorem" }
+  ],
+  "Engineering Physics-II": [
+    { id: "p1", name: "Module 1: Quantum Mechanics", prompt: "Quantum Mechanics: De Broglie hypothesis, Heisenberg uncertainty principle, Schrodinger wave equation, particle in a box, wave function" },
+    { id: "p2", name: "Module 2: Semiconductor Physics", prompt: "Semiconductor Physics: energy band theory, intrinsic and extrinsic semiconductors, Fermi level, Hall effect, p-n junction" },
+    { id: "p3", name: "Module 3: Superconductivity", prompt: "Superconductivity: properties, Meissner effect, Type I and Type II superconductors, BCS theory, applications SQUID Maglev MRI" },
+    { id: "p4", name: "Module 4: Lasers and Fiber Optics", prompt: "Lasers and Fiber Optics: stimulated emission, population inversion, Ruby laser, He-Ne laser, optical fiber structure, numerical aperture" },
+    { id: "p5", name: "Module 5: Nanotechnology", prompt: "Nanotechnology: quantum confinement, carbon nanotubes, nanomaterials synthesis, applications in medicine and electronics" },
+    { id: "p6", name: "Module 6: Electrodynamics", prompt: "Electrodynamics: Maxwell's equations, displacement current, electromagnetic wave propagation, Poynting vector, reflection refraction" }
+  ],
+  "Engineering Materials": [
+    { id: "em1", name: "Module 1: Alloys", prompt: "Alloys: ferrous alloys plain-carbon steels stainless steels, effect of alloying elements Ni Cr Co Mn Mo W V, aluminium alloys Duralumin Magnalium, copper alloys brass bronze, lead alloys Wood metal solder, numerical on composition density weight" },
+    { id: "em2", name: "Module 2: Ceramics", prompt: "Ceramics: definition types properties uses, glass types properties, natural and artificial abrasives silicon carbide aluminium oxide, optical fibres structure components numerical aperture applications" },
+    { id: "em3", name: "Module 3: Composites", prompt: "Composites: fibre-reinforced composites glass carbon Kevlar, layered composites laminates, particulate composites, bio-composites classification applications" },
+    { id: "em4", name: "Module 4: Plastics and Elastomers", prompt: "Plastics and Elastomers: thermoplastic thermosetting plastics compounding, PMMA PTFE synthesis properties uses, natural rubber processing, polyurethane rubber silicone rubber, numerical degree of polymerisation density tensile strength" },
+    { id: "em5", name: "Module 5: Advanced Polymers", prompt: "Advanced Polymers: conducting polymers polyacetylene polyaniline, bio-polymers biodegradable PLA, liquid crystal polymers Kevlar, intelligent smart polymers shape memory applications" },
+    { id: "em6", name: "Module 6: Nanomaterials", prompt: "Nanomaterials: nanostructured materials 0D 1D 2D 3D classification, graphene structure properties applications, SWCNTs MWCNTs properties uses, applications in medicine electronics energy" }
+  ],
+  "Engineering Graphics": [
+    { id: "eg1", name: "Module 1: Introduction to Engineering Drawing", prompt: "Engineering Drawing: types of lines IS conventions, dimensioning systems, plain and diagonal scales, cycloid involute helix construction" },
+    { id: "eg2", name: "Module 2: Projections of Points, Lines and Planes", prompt: "Projections of Points Lines Planes: points in all quadrants, lines inclined to both HP and VP true length, planes triangular square pentagonal hexagonal circular inclined to both reference planes" },
+    { id: "eg3", name: "Module 3: Projections of Solids", prompt: "Projections of Solids: prism pyramid cylinder cone with axis inclined to HP and VP, frustum sphere hollow solids, change of position auxiliary plane method" },
+    { id: "eg4", name: "Module 4: Sections of Solids and Development of Surfaces", prompt: "Sections of Solids: prism pyramid cylinder cone cut by plane perpendicular to VP, true shape of section, development of lateral surface of prism and pyramid" },
+    { id: "eg5", name: "Module 5: Orthographic Projections", prompt: "Orthographic Projections: first angle and third angle projection, front view top view side view, missing view problems, sectional views full section half section, rib and web in section" },
+    { id: "eg6", name: "Module 6: Isometric Views", prompt: "Isometric Views: isometric scale, isometric view of cube prism cylinder combination of solids, converting orthographic views to isometric view" }
+  ],
+  "Data Structure": [
+    { id: "ds1", name: "Module 1: Introduction to Data Structures", prompt: "Introduction to Data Structures: ADT concept, linear and nonlinear structures, static and dynamic, time and space complexity O(1) O(n) O(n2) O(logn), arrays pointers structures recursion" },
+    { id: "ds2", name: "Module 2: Stack", prompt: "Stack: ADT operations PUSH POP PEEK, array implementation, multiple stacks, evaluation of postfix expression using stack algorithm with trace, infix to postfix conversion" },
+    { id: "ds3", name: "Module 3: Queue", prompt: "Queue: ADT operations ENQUEUE DEQUEUE, linear queue array implementation, circular queue concept and implementation, priority queue, double ended queue DEQUE, multiple queues" },
+    { id: "ds4", name: "Module 4: Linked List", prompt: "Linked List: singly linked list insertion deletion traversal, doubly linked list operations, circular linked list, reversing singly linked list, stack and queue implementation using linked list" },
+    { id: "ds5", name: "Module 5: Tree", prompt: "Tree: terminology root node leaf height degree, binary tree types full complete perfect, array and linked representation, inorder preorder postorder traversal recursive non-recursive, BST insertion deletion search with trace" },
+    { id: "ds6", name: "Module 6: Applications of Data Structures", prompt: "Applications of Data Structures: infix to postfix and prefix conversion algorithm, postfix evaluation step by step trace, string reversal using stack, parentheses checker algorithm, expression tree, Huffman encoding algorithm and tree construction" }
+  ],
+  "Python Programming": [
+    { id: "py1", name: "Module 1: Introduction to Python", prompt: "Introduction to Python: data types int float str bool, operators arithmetic relational logical, input output f-strings, list tuple set dictionary operations methods slicing indexing" },
+    { id: "py2", name: "Module 2: Control Flow and Functions", prompt: "Control Flow and Functions: if elif else nested conditions, for while loops break continue pass, list comprehensions, functions def return default keyword arguments, args kwargs, scope LEGB rule, lambda map filter" },
+    { id: "py3", name: "Module 3: File Handling, Packaging and Debugging", prompt: "File Handling: file modes r w a rb wb, read readline readlines, write writelines, with statement, exception handling try except else finally raise, built-in exceptions, modules import packages __init__.py debugging" },
+    { id: "py4", name: "Module 4: Object-Oriented Programming in Python", prompt: "OOP in Python: class object self, instance vs class variables, constructor __init__ destructor __del__, encapsulation public protected private, single multiple multilevel inheritance, MRO super(), polymorphism method overriding operator overloading" },
+    { id: "py5", name: "Module 5: Advanced Python Concepts", prompt: "Advanced Python: regular expressions re module match search findall sub, metacharacters special sequences greedy non-greedy, Tkinter GUI window widgets Label Button Entry Text, event handling pack grid place layout managers" },
+    { id: "py6", name: "Module 6: Python Libraries", prompt: "Python Libraries: NumPy ndarray shape dtype operations mean std min max slicing broadcasting, Pandas Series DataFrame read_csv loc iloc dropna fillna groupby merge, Matplotlib line bar histogram scatter pie plot customization title legend" }
+  ]
 };
 
 export default SYLLABUS;
