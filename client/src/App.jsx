@@ -176,7 +176,7 @@ function App() {
         .top-header .header-right { display: flex; align-items: center; gap: 8px; }
         .card { background: #222; padding: 2rem; border-radius: 16px; width: 100%; max-width: 750px; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.6); position: relative; max-height: calc(100vh - 100px); overflow-y: auto; }
         .logo { font-size: 2.5em; margin-bottom: 20px; text-shadow: 0 0 15px rgba(100,108,255,0.6); font-weight: 800; letter-spacing: -1px; }
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #444; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #444; position: sticky; top: 0; background: #1c1c1e; z-index: 10; padding-top: 8px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
         button { cursor: pointer; transition: 0.2s; }
         button:active { transform: scale(0.98); }
@@ -274,10 +274,10 @@ function App() {
         {/* QUESTION & RESULT */}
         {(gameState === 'playing' || gameState === 'result') && question && (
           <div className="card" style={{maxWidth: '800px', marginTop: '10px'}}>
-            {gameState !== 'result' && <div className="header-row">
+            <div className="header-row">
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
-            </div>}
+            </div>
             {gameState !== 'result' && question.topic && <div style={{fontSize:12, color:'rgba(255,255,255,0.5)', textAlign:'center', marginBottom:15, textTransform: 'uppercase', letterSpacing: 1}}>Topic: {question.topic}</div>}
             {gameState !== 'result' && <h3 style={{textAlign:'center', lineHeight:1.6, fontSize: '1.3em', marginBottom: '30px'}}><MathText text={question?.question || "Loading..."} /></h3>}
             {gameState !== 'result' && question.exam_year && (<div style={{marginBottom:30, textAlign:'center', fontSize: '0.9em', color: '#FFD60A', border: '1px solid #FFD60A', display: 'inline-block', padding: '4px 10px', borderRadius: '15px', marginLeft: 'auto', marginRight: 'auto', display: 'table'}}>📚 Exam: {question.exam_year}</div>)}
