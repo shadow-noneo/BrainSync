@@ -527,10 +527,7 @@ function cleanLatex(str) {
 }
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
-  const topic = (room.topicQueue && room.topicQueue.length > 0)
-      ? room.topicQueue[room.topicQueueIndex % room.topicQueue.length]
-      : (room.topics && room.topics.length > 0 ? room.topics[0] : 'General');
-    if (room.topicQueue) room.topicQueueIndex = (room.topicQueueIndex || 0) + 1;
+  const topic = topicsArray && topicsArray.length > 0 ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : 'General';
   const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
   try {
