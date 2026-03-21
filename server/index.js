@@ -448,11 +448,48 @@ function cleanLatex(str) {
   s = s.split('sigma}').join('\\sigma}');
   s = s.split('frac{1}{sigma}').join('\\frac{1}{\\sigma}');
   s = s.split('frac{1}{\\sigma}').join('\\frac{1}{\\sigma}');
+  
+  // Fix \text{} rendering as extX
+  s = s.split('extm^3').join('m^3');
+  s = s.split('extm^2').join('m^2');
+  s = s.split('extm^{3}').join('m^3');
+  s = s.split('extm^{2}').join('m^2');
+  s = s.split('extm').join('m');
+  s = s.split('extC').join('C');
+  s = s.split('extV').join('V');
+  s = s.split('extA').join('A');
+  s = s.split('extW').join('W');
+  s = s.split('extJ').join('J');
+  s = s.split('extK').join('K');
+  s = s.split('extN').join('N');
+  s = s.split('extkg').join('kg');
+  s = s.split('exts').join('s');
+  s = s.split('Omegaextm').join('Ω·m');
+  s = s.split('Omega').join('Ω');
+  s = s.split('\\text{m}').join('m');
+  s = s.split('\\text{C}').join('C');
+  s = s.split('\\text{V}').join('V');
+  s = s.split('\\text{kg}').join('kg');
+  s = s.split('\\text{s}').join('s');
+  s = s.split('\\text{J}').join('J');
+  s = s.split('\\text{W}').join('W');
+  s = s.split('\\text{N}').join('N');
+  s = s.split('\\text{K}').join('K');
+  s = s.split('\\text{A}').join('A');
+  s = s.split('\\text{Hz}').join('Hz');
+  s = s.split('\\text{Pa}').join('Pa');
+  s = s.split('\\text{T}').join('T');
+  s = s.split('\\Omega').join('Ω');
+  s = s.split('\\mu m').join('μm');
+  s = s.split('\\mu s').join('μs');
   return s.trim();
 }
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
-  const topic = (topicsArray && topicsArray.length > 0) ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : "General";
+  const topic = (room.topicQueue && room.topicQueue.length > 0)
+      ? room.topicQueue[room.topicQueueIndex % room.topicQueue.length]
+      : (room.topics && room.topics.length > 0 ? room.topics[0] : 'General');
+    if (room.topicQueue) room.topicQueueIndex = (room.topicQueueIndex || 0) + 1;
   const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
   try {
