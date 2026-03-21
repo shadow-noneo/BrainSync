@@ -273,7 +273,7 @@ function App() {
 
         {/* QUESTION & RESULT */}
         {(gameState === 'playing' || gameState === 'result') && question && (
-          <div className="card" style={{maxWidth: '800px'}}>
+          <div className="card" style={{maxWidth: '800px', marginTop: '10px'}}>
             {gameState !== 'result' && <div className="header-row">
                 <div style={{fontSize:'1.2em', fontWeight:'bold', color: timer < 30 ? '#FF3B30' : '#34C759'}}>⏳ {formatTime(timer)}</div>
                 <div className="marks-badge">🏆 {question.marks} Marks</div>
@@ -285,14 +285,13 @@ function App() {
             {gameState === 'playing' && (<div className="grid">{question?.options?.map((opt, i) => (<button key={i} className={`option-btn ${selectedOptionIndex === i ? 'selected' : ''}`} onClick={() => handleAnswer(opt, i)} disabled={selectedOptionIndex !== null}><div className="option-badge">{getLetter(i)}</div><div style={{flex:1, overflow:'hidden', fontSize: '1.1em'}}><MathText text={opt} /></div></button>))}</div>)}
 
             {gameState === 'result' && roundResult && (
-              <div style={{marginTop:20, paddingTop:20, borderTop:'1px solid #444'}}>
+              <div style={{marginTop:20, paddingTop:20, borderTop:'1px solid #444', overflowY:'auto', maxHeight:'calc(100vh - 180px)'}}>
                 <h2 style={{color: roundResult.isCorrect ? '#34C759' : '#FF3B30', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center', gap: 10}}>{roundResult.isCorrect ? "✅ Correct!" : "❌ Wrong!"}</h2>
                 {!roundResult.isCorrect && selectedOptionIndex !== null && (<div style={{background:'rgba(255, 59, 48, 0.1)', padding:12, borderRadius:12, marginBottom:10, border:'1px solid rgba(255, 59, 48, 0.3)'}}><strong style={{color:'#FF3B30'}}>You Chose: Option {getLetter(selectedOptionIndex)}</strong></div>)}
                 <div style={{background:'rgba(52, 199, 89, 0.1)', padding:15, borderRadius:12, marginBottom:10, border:'1px solid rgba(52, 199, 89, 0.3)'}}><strong style={{color:'#34C759'}}>Correct Answer: Option {getLetter(getCorrectIndex())}</strong><div style={{marginTop:8, fontSize: '1.2em'}}><MathText text={roundResult.correctAnswer} /></div></div>
                 <div className="explanation-box"><div style={{color:'rgba(255,255,255,0.9)', fontSize:'1.05em', lineHeight: 1.6}}><MathText text={roundResult.explanation} /></div></div>
               </div>
             )}
-
             {role === 'host' && (
               <div className="host-controls">
                 <button onClick={navPrev} style={{background:'#2c2c2e', border:'none', color:'white', padding:'10px 20px', borderRadius:10}}>⬅ Prev</button>

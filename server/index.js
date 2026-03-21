@@ -397,7 +397,6 @@ function cleanLatex(str) {
   // Fix missing backslashes
   s = s.replace(/([^\\a-zA-Z{])langle/g, '$1\\langle');
   s = s.replace(/([^\\a-zA-Z{])rangle/g, '$1\\rangle');
-  s = s.replace(/([^\\a-zA-Z])left\\(/g, '$1\\left(');
   s = s.replace(/([^\\])left\s*\(/g, '$1\\left(');
   s = s.replace(/ight\)/g, '\\right)');
   s = s.replace(/ight\]/g, '\\right]');
