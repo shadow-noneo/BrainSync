@@ -429,6 +429,20 @@ function cleanLatex(str) {
   s = s.split('imes').join('\\times');
   // Fix egin (missing b from begin)
   s = s.split('egin{').join('\\begin{');
+  
+  // Simple f\frac fix
+  while (s.includes('f\\frac')) s = s.split('f\\frac').join('\\frac');
+  while (s.includes('f\\sqrt')) s = s.split('f\\sqrt').join('\\sqrt');
+  while (s.includes('f\\left')) s = s.split('f\\left').join('\\left');
+  while (s.includes('f\\right')) s = s.split('f\\right').join('\\right');
+  while (s.includes('f\\psi')) s = s.split('f\\psi').join('\\psi');
+  while (s.includes('f\\hbar')) s = s.split('f\\hbar').join('\\hbar');
+  while (s.includes('f\\pi')) s = s.split('f\\pi').join('\\pi');
+  while (s.includes('f\\sigma')) s = s.split('f\\sigma').join('\\sigma');
+  while (s.includes('extMPa')) s = s.split('extMPa').join('MPa');
+  while (s.includes('extm')) s = s.split('extm').join('m');
+  while (s.includes('extC')) s = s.split('extC').join('C');
+  while (s.includes('extg')) s = s.split('extg').join('g');
   return s.trim();
 }
 
@@ -446,7 +460,7 @@ STRICT RULES:
 2. The question must be a FULL problem-solving question like MU end sem papers (NOT a simple MCQ definition).
 3. For ${marks} marks question, the complexity should match: 3-4 marks = medium derivation, 5 marks = full derivation, 7-8 marks = long proof or two-part problem.
 4. The 4 options must be ONLY the FINAL ANSWER of the problem (not steps, not definitions).
-5. ALL math MUST use proper LaTeX wrapped in $ signs. NEVER write f\\frac, always \\frac. NEVER write f\\Gamma, always \\Gamma. NEVER write plain infty, always \\infty. NEVER write plain Gamma(, always \\Gamma(.
+5. ALL math MUST use proper LaTeX wrapped in $ signs. CRITICAL: The letter f must NEVER appear before any backslash command. Write \\frac NOT f\\frac. Write \\frac NOT f\\frac. Write \\sqrt NOT f\\sqrt. Write \\left NOT f\\left. Write \\right NOT f\\right. Write \\infty NOT infty. Write \\psi NOT psi. Write \\hbar NOT hbar. Units like MPa, g/cm^3 must be written as plain text NOT using \\text{}.
 6. The explanation must show complete step-by-step solution.
 7. exam_year must be randomly chosen from: May 2019, Nov 2019, May 2022, Nov 2022, May 2023, Nov 2023, May 2024, Nov 2024.
 
