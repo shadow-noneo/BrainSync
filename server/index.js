@@ -392,57 +392,28 @@ console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loade
 function cleanLatex(str) {
   if (!str) return "";
   let s = String(str);
-  // Nuclear fix: remove ANY letter 'f' before LaTeX backslash commands
-  s = s.replace(/f(\\(?:frac|sqrt|left|right|langle|rangle|hbar|psi|pi|sin|cos|tan|int|sum|prod|vec|hat|bar|cdot|times|div|pm|leq|geq|neq|approx|infty|partial|nabla|alpha|beta|gamma|delta|epsilon|sigma|omega|theta|lambda|mu|phi|chi|Gamma|Delta|Sigma|Omega|Theta|Lambda|Phi|Psi|text|mathrm|mathbf|begin|end|lim|max|min|log|ln|exp|over|under))/g, '$1');
-  // Fix missing backslashes
-  s = s.replace(/([^\\a-zA-Z{])langle/g, '$1\\langle');
-  s = s.replace(/([^\\a-zA-Z{])rangle/g, '$1\\rangle');
-  s = s.replace(/([^\\])left\s*\(/g, '$1\\left(');
-  s = s.replace(/ight\)/g, '\\right)');
-  s = s.replace(/ight\]/g, '\\right]');
-  s = s.replace(/sinleft/g, '\\sin\\left');
-  s = s.replace(/cosleft/g, '\\cos\\left');
-  s = s.replace(/tanleft/g, '\\tan\\left');
-  s = s.replace(/([^\\a-zA-Z])left\(/g, '$1\\left(');
-  // Fix psi, hbar without backslash
-  s = s.replace(/([^\\a-zA-Z])psi/g, '$1\\psi');
-  s = s.replace(/([^\\a-zA-Z])hbar/g, '$1\\hbar');
-  s = s.replace(/([^\\a-zA-Z])langle/g, '$1\\langle');
-  s = s.replace(/([^\\a-zA-Z])rangle/g, '$1\\rangle');
-  // Fix extm, extC etc
-  s = s.split('extm').join('m');
-  s = s.split('extC').join('C');
-  s = s.split('extV').join('V');
-  s = s.split('extA').join('A');
-  s = s.split('extW').join('W');
-  s = s.split('extJ').join('J');
-  s = s.split('extK').join('K');
-  s = s.split('extN').join('N');
-  s = s.split('Omegaextm').join('\\Omega\\cdot m');
-  // Fix sinheta, cosheta
-  s = s.split('sinheta').join('\\sin\\theta');
-  s = s.split('cosheta').join('\\cos\\theta');
-  s = s.split('tanheta').join('\\tan\\theta');
-  // Fix approx
-  s = s.replace(/([^\\])approx/g, '$1\\approx');
-  // Fix imes (missing t from times)
-  s = s.split('imes').join('\\times');
-  // Fix egin (missing b from begin)
-  s = s.split('egin{').join('\\begin{');
-  
-  // Simple f\frac fix
-  while (s.includes('f\\frac')) s = s.split('f\\frac').join('\\frac');
-  while (s.includes('f\\sqrt')) s = s.split('f\\sqrt').join('\\sqrt');
-  while (s.includes('f\\left')) s = s.split('f\\left').join('\\left');
-  while (s.includes('f\\right')) s = s.split('f\\right').join('\\right');
-  while (s.includes('f\\psi')) s = s.split('f\\psi').join('\\psi');
-  while (s.includes('f\\hbar')) s = s.split('f\\hbar').join('\\hbar');
-  while (s.includes('f\\pi')) s = s.split('f\\pi').join('\\pi');
-  while (s.includes('f\\sigma')) s = s.split('f\\sigma').join('\\sigma');
-  while (s.includes('extMPa')) s = s.split('extMPa').join('MPa');
-  while (s.includes('extm')) s = s.split('extm').join('m');
-  while (s.includes('extC')) s = s.split('extC').join('C');
-  while (s.includes('extg')) s = s.split('extg').join('g');
+  const fixes = [
+    ['f\\frac','\\frac'],['f\\sqrt','\\sqrt'],['f\\left','\\left'],
+    ['f\\right','\\right'],['f\\psi','\\psi'],['f\\hbar','\\hbar'],
+    ['f\\pi','\\pi'],['f\\sigma','\\sigma'],['f\\sin','\\sin'],
+    ['f\\cos','\\cos'],['f\\tan','\\tan'],['f\\int','\\int'],
+    ['f\\sum','\\sum'],['f\\infty','\\infty'],['f\\alpha','\\alpha'],
+    ['f\\beta','\\beta'],['f\\gamma','\\gamma'],['f\\theta','\\theta'],
+    ['f\\omega','\\omega'],['f\\delta','\\delta'],['f\\lambda','\\lambda'],
+    ['f\\Gamma','\\Gamma'],['f\\Delta','\\Delta'],['f\\Sigma','\\Sigma'],
+    ['f\\Omega','\\Omega'],['f\\langle','\\langle'],['f\\rangle','\\rangle'],
+    ['f\\vec','\\vec'],['f\\hat','\\hat'],['f\\bar','\\bar'],
+    ['f\\nabla','\\nabla'],['f\\partial','\\partial'],
+    ['extMPa','MPa'],['extPa','Pa'],['extHz','Hz'],
+    ['extm','m'],['extC','C'],['extV','V'],['extA','A'],
+    ['extW','W'],['extJ','J'],['extK','K'],['extN','N'],['extg','g'],
+    ['sinheta','\\sin\\theta'],['cosheta','\\cos\\theta'],
+    ['tanheta','\\tan\\theta'],
+    ['imes','\\times'],['egin{','\\begin{'],
+  ];
+  for (const [from, to] of fixes) {
+    while (s.includes(from)) s = s.split(from).join(to);
+  }
   return s.trim();
 }
 
