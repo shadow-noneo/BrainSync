@@ -482,6 +482,47 @@ function cleanLatex(str) {
   s = s.split('\\Omega').join('Ω');
   s = s.split('\\mu m').join('μm');
   s = s.split('\\mu s').join('μs');
+  
+  // Fix sin/cos/tan + theta combinations
+  s = s.split('sinheta').join('\\sin\\theta');
+  s = s.split('cosheta').join('\\cos\\theta');
+  s = s.split('tanheta').join('\\tan\\theta');
+  s = s.split('sinθ').join('\\sin\\theta');
+  s = s.split('cosθ').join('\\cos\\theta');
+  s = s.split('tanθ').join('\\tan\\theta');
+
+  // Fix sqrt without braces — sqrt2.19 → \sqrt{2.19}
+  s = s.replace(/sqrt([0-9]+\.?[0-9]*)/g, '\\sqrt{$1}');
+  s = s.replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
+
+  // Fix approx
+  s = s.split('approx').join('\\approx');
+  s = s.split('NAapprox').join('NA \\approx');
+
+  // Fix text units
+  s = s.split('extm').join('m');
+  s = s.split('extC').join('C');
+  s = s.split('extV').join('V');
+  s = s.split('extA').join('A');
+  s = s.split('extW').join('W');
+  s = s.split('extJ').join('J');
+  s = s.split('extK').join('K');
+  s = s.split('extN').join('N');
+  s = s.split('Omegaextm').join('Ω·m');
+  s = s.split('\\Omega').join('Ω');
+
+  // Fix missing backslash on common commands
+  s = s.replace(/([^\\])sqrt/g, '$1\\sqrt');
+  s = s.replace(/([^\\])theta/g, '$1\\theta');
+  s = s.replace(/([^\\])alpha/g, '$1\\alpha');
+  s = s.replace(/([^\\])beta/g, '$1\\beta');
+  s = s.replace(/([^\\])gamma/g, '$1\\gamma');
+  s = s.replace(/([^\\])lambda/g, '$1\\lambda');
+  s = s.replace(/([^\\])sigma/g, '$1\\sigma');
+  s = s.replace(/([^\\])omega/g, '$1\\omega');
+  s = s.replace(/([^\\])delta/g, '$1\\delta');
+  s = s.replace(/([^\\])pi([^a-z])/g, '$1\\pi$2');
+  s = s.replace(/([^\\])mu([^a-z])/g, '$1\\mu$2');
   return s.trim();
 }
 
