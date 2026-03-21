@@ -390,30 +390,65 @@ const rooms = {};
 console.log("🚀 SERVER v41.0 | KEY: " + (process.env.GROQ_API_KEY ? "✅ Loaded" : "❌ MISSING"));
 
 function cleanLatex(str) {
-    if (!str) return "";
-    let s = String(str);
-    s = s.split('f\\frac').join('\\frac');
-    s = s.split('f\\Gamma').join('\\Gamma');
-    s = s.split('f\\int').join('\\int');
-    s = s.split('f\\sum').join('\\sum');
-    s = s.split('f\\sqrt').join('\\sqrt');
-    s = s.split('f\\cdot').join('\\cdot');
-    s = s.split('f\\beta').join('\\beta');
-    s = s.split('f\\alpha').join('\\alpha');
-    s = s.split('f\\partial').join('\\partial');
-    s = s.split('f\\left').join('\\left');
-    s = s.split('f\\right').join('\\right');
-    s = s.split('f\\sin').join('\\sin');
-    s = s.split('f\\cos').join('\\cos');
-    s = s.split('f\\tan').join('\\tan');
-    s = s.split('f\\pi').join('\\pi');
-    s = s.split('f\\times').join('\\times');
-    s = s.split('imes').join('\\times');
-    s = s.split('egin{').join('\\begin{');
-    s = s.split('Gamma(').join('\\Gamma(');
-    s = s.split('f\\vec').join('\\vec');
-    s = s.split('f\\hat').join('\\hat');
-    return s.trim();
+  if (!str) return "";
+  let s = String(str);
+  // Fix f\frac and similar AI hallucinations
+  s = s.split('f\\frac').join('\\frac');
+  s = s.split('f\\Gamma').join('\\Gamma');
+  s = s.split('f\\int').join('\\int');
+  s = s.split('f\\sum').join('\\sum');
+  s = s.split('f\\prod').join('\\prod');
+  s = s.split('f\\sqrt').join('\\sqrt');
+  s = s.split('f\\lim').join('\\lim');
+  s = s.split('f\\sin').join('\\sin');
+  s = s.split('f\\cos').join('\\cos');
+  s = s.split('f\\tan').join('\\tan');
+  s = s.split('f\\log').join('\\log');
+  s = s.split('f\\ln').join('\\ln');
+  s = s.split('f\\alpha').join('\\alpha');
+  s = s.split('f\\beta').join('\\beta');
+  s = s.split('f\\sigma').join('\\sigma');
+  s = s.split('f\\omega').join('\\omega');
+  s = s.split('f\\theta').join('\\theta');
+  s = s.split('f\\pi').join('\\pi');
+  s = s.split('f\\lambda').join('\\lambda');
+  s = s.split('f\\mu').join('\\mu');
+  s = s.split('f\\delta').join('\\delta');
+  s = s.split('f\\partial').join('\\partial');
+  s = s.split('f\\nabla').join('\\nabla');
+  s = s.split('f\\infty').join('\\infty');
+  s = s.split('f\\cdot').join('\\cdot');
+  s = s.split('f\\times').join('\\times');
+  s = s.split('f\\div').join('\\div');
+  s = s.split('f\\pm').join('\\pm');
+  s = s.split('f\\leq').join('\\leq');
+  s = s.split('f\\geq').join('\\geq');
+  s = s.split('f\\neq').join('\\neq');
+  s = s.split('f\\approx').join('\\approx');
+  s = s.split('f\\in').join('\\in');
+  s = s.split('f\\subset').join('\\subset');
+  s = s.split('f\\cup').join('\\cup');
+  s = s.split('f\\cap').join('\\cap');
+  s = s.split('f\\vec').join('\\vec');
+  s = s.split('f\\hat').join('\\hat');
+  s = s.split('f\\bar').join('\\bar');
+  s = s.split('f\\dot').join('\\dot');
+  s = s.split('f\\ddot').join('\\ddot');
+  s = s.split('f\\text').join('\\text');
+  s = s.split('f\\mathrm').join('\\mathrm');
+  s = s.split('f\\mathbf').join('\\mathbf');
+  s = s.split('f\\left').join('\\left');
+  s = s.split('f\\right').join('\\right');
+  s = s.split('f\\begin').join('\\begin');
+  s = s.split('f\\end').join('\\end');
+  // Fix missing backslash
+  s = s.split('imes').join('\\times');
+  s = s.split('egin{').join('\\begin{');
+  s = s.split('Gamma(').join('\\Gamma(');
+  s = s.split('sigma}').join('\\sigma}');
+  s = s.split('frac{1}{sigma}').join('\\frac{1}{\\sigma}');
+  s = s.split('frac{1}{\\sigma}').join('\\frac{1}{\\sigma}');
+  return s.trim();
 }
 
 async function generateAIQuestion(subject, topicsArray, attempt = 1) {
@@ -546,7 +581,20 @@ io.on('connection', (socket) => {
     
     if (forceNew) {
         room.questionCount = 0; room.history = []; room.historyIndex = -1;
-        room.currentQuestion = null; room.canMoveOn = false; room.subject = subject; 
+        
+    // Build topic queue: divide questions evenly across topics
+    const topicQueue = [];
+    if (topics && topics.length > 0) {
+      const questionsPerTopic = Math.max(1, Math.floor((limit === -1 ? 10 : limit) / topics.length));
+      const remainder = (limit === -1 ? 10 : limit) % topics.length;
+      topics.forEach((topic, i) => {
+        const count = questionsPerTopic + (i < remainder ? 1 : 0);
+        for (let j = 0; j < count; j++) topicQueue.push(topic);
+      });
+    }
+    room.topicQueue = topicQueue;
+    room.topicQueueIndex = 0;
+    room.currentQuestion = null; room.canMoveOn = false; room.subject = subject; 
         if (limit !== undefined) room.questionLimit = parseInt(limit);
     }
     

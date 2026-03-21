@@ -85,8 +85,10 @@ function App() {
   const [recState, setRecState] = useState('idle'); 
   const [recTime, setRecTime] = useState(0);
   const [recStartTime, setRecStartTime] = useState(0);
-  const [selectedTopics, setSelectedTopics] = useState([]); 
+  const [selectedTopics, setSelectedTopics] = useState([]);
+  const [currentTopicIndex, setCurrentTopicIndex] = useState(0); 
   const [questionLimit, setQuestionLimit] = useState(""); 
+  const [selectedSubject, setSelectedSubject] = useState("Applied Mathematics-II");
   const [expandedSubject, setExpandedSubject] = useState(null); 
   const [quizHistory, setQuizHistory] = useState([]);
   const [isHistoryMode, setIsHistoryMode] = useState(false);
@@ -237,7 +239,7 @@ function App() {
       {gameState !== 'menu' && (
         <div className="top-header">
           <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>☰ Topics</button>
-          <div className="logo-small">🧠 BrainSync</div>
+          <div className="logo-small" onClick={() => { if(gameState !== 'menu') { setGameState('lobby'); setRoundResult(null); setSelectedTopics([]); } }} style={{cursor: gameState !== 'menu' ? 'pointer' : 'default', userSelect: 'none'}}>🧠 BrainSync</div>
           <button className="profile-btn" onClick={() => setProfileOpen(!profileOpen)}>👤</button>
         </div>
       )}
@@ -250,7 +252,7 @@ function App() {
       <div style={{display:'flex', flexDirection:'column', alignItems:'center', width:'100%'}}>
         <h1 className="logo" style={{display:'none'}}>🧠 BrainSync</h1>
         {gameState === 'loading' && (<div className="card" style={{textAlign:'center', minHeight:300, display:'flex', flexDirection:'column', justifyContent:'center'}}><div className="galaxy-ring"></div><h2>Generating Exam Question... ✨</h2></div>)}
-        {gameState === 'menu' && (<div className="card" style={{textAlign:'center'}}><div style={{fontSize:'4em', marginBottom:'8px', filter:'drop-shadow(0 0 20px rgba(100,108,255,0.8))'}}>🧠</div><h1 style={{fontSize:'2.4em', fontWeight:900, letterSpacing:'-1.5px', background:'linear-gradient(135deg, #0A84FF, #5E5CE6, #FF375F)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', margin:'0 0 20px 0'}}>BrainSync</h1><input className="input" style={{textAlign:'left'}} placeholder="Enter Name" onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && roomInputRef.current.focus()} /><input className="input" style={{textAlign:'left'}} ref={roomInputRef} placeholder="Room Code (101)" onChange={(e) => setRoomCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && joinRoom()} /><button className="primary-btn" onClick={joinRoom}>Enter Class</button></div>)}
+        {gameState === 'menu' && (<div className="card" style={{textAlign:'center'}}><div style={{fontSize:'4em', marginBottom:'8px', filter:'drop-shadow(0 0 20px rgba(100,108,255,0.8))', animation:'brainPulse 2s ease-in-out infinite'}}>🧠</div><h1 style={{fontSize:'2.4em', fontWeight:900, letterSpacing:'-1.5px', background:'linear-gradient(135deg, #0A84FF, #5E5CE6, #FF375F)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', margin:'0 0 20px 0'}}>BrainSync</h1><input className="input" style={{textAlign:'left'}} placeholder="Enter Name" onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && roomInputRef.current.focus()} /><input className="input" style={{textAlign:'left'}} ref={roomInputRef} placeholder="Room Code (101)" onChange={(e) => setRoomCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && joinRoom()} /><button className="primary-btn" onClick={joinRoom}>Enter Class</button></div>)}
         
         {/* HOST LOBBY */}
         {gameState === 'lobby' && role === 'host' && (
