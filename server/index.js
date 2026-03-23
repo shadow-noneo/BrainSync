@@ -457,7 +457,18 @@ JSON Schema:
         response_format: { type: "json_object" } 
     });
     
-    let data = JSON.parse(res.choices[0].message.content);
+    let raw = res.choices[0].message.content;
+    // Fix unescaped backslashes in JSON
+    raw = raw.replace(/\\(?!["\/bfnrtu])/g, '\\\\');
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch(e) {
+      // Try extracting JSON manually
+      const match = raw.match(/\{[\s\S]*\}/);
+      if(match) data = JSON.parse(match[0].replace(/\\(?!["\/bfnrtu])/g, '\\\\'));
+      else throw e;
+    }
 
     // 🟢 SERVER-SIDE CLEANING
     data.question = cleanLatex(data.question);
