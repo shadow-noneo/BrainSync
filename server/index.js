@@ -407,7 +407,7 @@ function cleanLatex(str) {
     ['extMPa','MPa'],['extPa','Pa'],['extHz','Hz'],
     ['extm','m'],['extC','C'],['extV','V'],['extA','A'],
     ['extW','W'],['extJ','J'],['extK','K'],['extN','N'],['extg','g'],
-    ['sinheta','\\sin\\theta'],['cosheta','\\cos\\theta'],
+    ['sinheta','\\sin\\theta'],['cosheta','\\cos\\theta'],['tanheta','\\tan\\theta'],['heta','\\theta'],['f\\\\frac','\\\\frac'],['f\\\\pi','\\\\pi'],['f\\\\theta','\\\\theta'],
     ['tanheta','\\tan\\theta'],
     ['imes','\\times'],['egin{','\\begin{'],
   ];
