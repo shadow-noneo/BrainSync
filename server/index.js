@@ -417,7 +417,7 @@ function cleanLatex(str) {
   return s.trim();
 }
 
-async function generateAIQuestion(subject, topicsArray, attempt = 1) {
+async function generateAIQuestion(subject, topicsArray, attempt = 1, maxAttempts = 4) {
   const topic = topicsArray && topicsArray.length > 0 ? topicsArray[Math.floor(Math.random() * topicsArray.length)] : 'General';
   const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
