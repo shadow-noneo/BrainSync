@@ -640,8 +640,9 @@ io.on('connection', (socket) => {
 
     if (room.historyIndex < room.history.length - 1) {
         room.historyIndex++;
+        room.currentQuestion = room.history[room.historyIndex];
+        room.submittedUsers = new Set();
         io.to(roomCode).emit('new_question', room.history[room.historyIndex]);
-        io.to(roomCode).emit('round_result', { correctIndex: room.history[room.historyIndex].correctIndex, correctAnswer: room.history[room.historyIndex].answer, explanation: room.history[room.historyIndex].explanation, isReview: true });
     }
   });
   
