@@ -425,6 +425,7 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1, maxAttempts
     const prompt = `You are a Mumbai University first year engineering exam question setter.
 
 Generate ONE MCQ for: SUBJECT=${subject}, TOPIC=${topic}, MARKS=${marks}
+Random seed (use this to make a UNIQUE question every time): ${Math.random().toString(36).substring(2,8)}-${Date.now() % 10000}
 
 CRITICAL JSON RULES - YOUR RESPONSE WILL BE REJECTED IF YOU BREAK THESE:
 - Return ONLY a JSON object, no other text
@@ -448,7 +449,7 @@ JSON format (copy this structure exactly):
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
-        temperature: 0.7 + Math.random() * 0.3, max_tokens: 800,
+        temperature: 0.9, max_tokens: 800,
         // response_format removed to avoid LaTeX JSON conflicts 
     });
     
