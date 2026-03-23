@@ -454,21 +454,14 @@ JSON Schema:
         messages: [{ role: "user", content: prompt }], 
         model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
         temperature: 0.3, max_tokens: 500,
-        response_format: { type: "json_object" } 
+        // response_format removed to avoid LaTeX JSON conflicts 
     });
     
     let raw = res.choices[0].message.content;
-    // Fix unescaped backslashes in JSON
-    raw = raw.replace(/\\(?!["\/bfnrtu])/g, '\\\\');
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch(e) {
-      // Try extracting JSON manually
-      const match = raw.match(/\{[\s\S]*\}/);
-      if(match) data = JSON.parse(match[0].replace(/\\(?!["\/bfnrtu])/g, '\\\\'));
-      else throw e;
-    }
+    // Extract JSON from response
+    const jsonMatch = raw.match(/{[sS]*}/);
+    if (!jsonMatch) throw new Error('No JSON found');
+    let data = JSON.parse(jsonMatch[0]);
 
     // 🟢 SERVER-SIDE CLEANING
     data.question = cleanLatex(data.question);
