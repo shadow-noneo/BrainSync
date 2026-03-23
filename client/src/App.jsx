@@ -48,10 +48,55 @@ const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0
 const MathText = ({ text }) => {
   if (!text) return <span>...</span>;
   try {
-      let cleanText = sanitizeText(text).replace(/f\\frac/g, '\\frac').replace(/\\f/g, 'f').replace(/rac\{/g, '\\frac{').replace(/\\left\s+/g, '\\left').replace(/\\right\s+/g, '\\right').replace(/\\\(/g, '$').replace(/\\\)/g, '$').replace(/\\\[/g, '$').replace(/\\\]/g, '$').replace(/\$\$/g, '$');
-      const parts = cleanText.split('$');
-      return <span style={{ fontSize: '1.1em', wordBreak: 'break-word', lineHeight: '1.6' }}>{parts.map((p, i) => { if (!p) return null; if (i % 2 === 1) return <span key={i}><InlineMath math={p} renderError={() => <span>{p}</span>} /></span>; return <span key={i}>{p}</span>; })}</span>;
-  } catch (e) { return <span>{text}</span>; }
+    let t = String(text);
+    t = t.replace(/f\\frac/g, '\\frac');
+    t = t.replace(/f\\sqrt/g, '\\sqrt');
+    t = t.replace(/f\\left/g, '\\left');
+    t = t.replace(/f\\right/g, '\\right');
+    t = t.replace(/f\\pi/g, '\\pi');
+    t = t.replace(/f\\theta/g, '\\theta');
+    t = t.replace(/f\\sin/g, '\\sin');
+    t = t.replace(/f\\cos/g, '\\cos');
+    t = t.replace(/f\\sigma/g, '\\sigma');
+    t = t.replace(/f\\hbar/g, '\\hbar');
+    t = t.replace(/f\\psi/g, '\\psi');
+    t = t.replace(/f\\int/g, '\\int');
+    t = t.replace(/f\\infty/g, '\\infty');
+    t = t.replace(/f\\alpha/g, '\\alpha');
+    t = t.replace(/f\\beta/g, '\\beta');
+    t = t.replace(/f\\gamma/g, '\\gamma');
+    t = t.replace(/f\\omega/g, '\\omega');
+    t = t.replace(/f\\Gamma/g, '\\Gamma');
+    t = t.replace(/f\\Delta/g, '\\Delta');
+    t = t.replace(/f\\Phi/g, '\\Phi');
+    t = t.replace(/f\\Psi/g, '\\Psi');
+    t = t.replace(/f\\langle/g, '\\langle');
+    t = t.replace(/f\\rangle/g, '\\rangle');
+    t = t.replace(/f\\vec/g, '\\vec');
+    t = t.replace(/f\\hat/g, '\\hat');
+    t = t.replace(/f\\nabla/g, '\\nabla');
+    t = t.replace(/f\\partial/g, '\\partial');
+    t = t.replace(/f\\cdot/g, '\\cdot');
+    t = t.replace(/f\\times/g, '\\times');
+    t = t.replace(/f\\approx/g, '\\approx');
+    t = t.replace(/f\\begin/g, '\\begin');
+    t = t.replace(/f\\end/g, '\\end');
+    t = t.replace(/f\\lim/g, '\\lim');
+    t = t.replace(/f\\log/g, '\\log');
+    t = t.replace(/sinheta/g, '\\sin\\theta');
+    t = t.replace(/cosheta/g, '\\cos\\theta');
+    t = t.replace(/tanheta/g, '\\tan\\theta');
+    t = t.replace(/([^a-zA-Z\\])heta/g, '$1\\theta');
+    t = t.replace(/extMPa/g, 'MPa');
+    t = t.replace(/extm/g, 'm');
+    t = t.replace(/extC/g, 'C');
+    t = t.replace(/extV/g, 'V');
+    t = t.replace(/extg/g, 'g');
+    t = t.replace(/extkg/g, 'kg');
+    t = t.split('\\(').join('$').split('\\)').join('$').split('\\[').join('$').split('\\]').join('$').split('$$').join('$');
+    const parts = t.split('$');
+    return <span style={{fontSize:'1.1em',wordBreak:'break-word',lineHeight:'1.6'}}>{parts.map((p,i)=>{if(!p)return null;if(i%2===1)return <span key={i}><InlineMath math={p} renderError={()=><span>{p}</span>}/></span>;return <span key={i}>{p}</span>;})}</span>;
+  } catch(e){return <span>{text}</span>;}
 };
 
 const compressImage = (file, callback) => {
