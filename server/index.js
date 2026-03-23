@@ -431,7 +431,19 @@ STRICT RULES:
 2. The question must be a FULL problem-solving question like MU end sem papers (NOT a simple MCQ definition).
 3. For ${marks} marks question, the complexity should match: 3-4 marks = medium derivation, 5 marks = full derivation, 7-8 marks = long proof or two-part problem.
 4. The 4 options must be ONLY the FINAL ANSWER of the problem (not steps, not definitions).
-5. ALL math MUST use proper LaTeX wrapped in $ signs. CRITICAL: The letter f must NEVER appear before any backslash command. Write \\frac NOT f\\frac. Write \\frac NOT f\\frac. Write \\sqrt NOT f\\sqrt. Write \\left NOT f\\left. Write \\right NOT f\\right. Write \\infty NOT infty. Write \\psi NOT psi. Write \\hbar NOT hbar. Units like MPa, g/cm^3 must be written as plain text NOT using \\text{}.
+5. ALL math MUST use proper LaTeX wrapped in $ signs.
+ABSOLUTELY FORBIDDEN — if you write any of these your response is invalid:
+- NEVER write f\\frac — always write \\frac
+- NEVER write f\\pi — always write \\pi  
+- NEVER write f\\theta — always write \\theta
+- NEVER write heta — always write \\theta
+- NEVER write sinheta — always write \\sin\\theta
+- NEVER write cosheta — always write \\cos\\theta
+- NEVER write sinleft — always write \\sin\\left
+- NEVER write \\text{m} or \\text{kg} — write units as plain text: m, kg, MPa
+- NEVER write extm, extC, extV, extg — write units as plain text
+- NEVER write infty — always write \\infty
+- NEVER write langle or rangle — always write \\langle and \\rangle CRITICAL: The letter f must NEVER appear before any backslash command. Write \\frac NOT f\\frac. Write \\frac NOT f\\frac. Write \\sqrt NOT f\\sqrt. Write \\left NOT f\\left. Write \\right NOT f\\right. Write \\infty NOT infty. Write \\psi NOT psi. Write \\hbar NOT hbar. Units like MPa, g/cm^3 must be written as plain text NOT using \\text{}.
 6. The explanation must show complete step-by-step solution.
 7. exam_year must be randomly chosen from: May 2019, Nov 2019, May 2022, Nov 2022, May 2023, Nov 2023, May 2024, Nov 2024.
 
