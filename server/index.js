@@ -422,26 +422,33 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1, maxAttempts
   const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `You are a Mumbai University exam question generator. Generate ONE MCQ question.
+    const prompt = `You are an expert Mumbai University (MU) NEP 2020 exam question setter for first year engineering.
 
 SUBJECT: ${subject}
-TOPIC: ${topic}  
+TOPIC: ${topic}
 MARKS: ${marks}
+EXAM: Mumbai University End Semester Examination
 
-STRICT OUTPUT RULES:
-1. Return ONLY valid JSON, nothing else
-2. Options must be SHORT (under 30 chars each) - just the final answer value
-3. For math: use simple notation like x^2, sqrt(x), pi, theta - NO LaTeX backslashes in options
-4. Question can have LaTeX with $ signs
-5. Keep explanation under 100 words
+Generate ONE question exactly like MU end semester papers. For ${marks} marks:
+- 3 marks = short derivation or definition with formula
+- 4-5 marks = medium numerical problem with steps  
+- 7-8 marks = long derivation or multi-part problem
 
-Return this exact JSON structure:
-{"question":"question text here","options":["option A","option B","option C","option D"],"answer":"correct option text","explanation":"brief explanation","marks":${marks},"topic":"${topic}","exam_year":"May 2023"}`
+RULES:
+1. Return ONLY valid JSON with these exact keys
+2. Question must be a real problem-solving question NOT a definition
+3. Options must be the FINAL ANSWER only (short, under 40 chars)
+4. Use $ signs for math: $\\frac{1}{2}mv^2$ NOT f\\frac
+5. explanation must have 3-4 clear steps
+6. Make options realistic - wrong answers should be close to correct
+
+JSON:
+{"question":"full question text","options":["A value","B value","C value","D value"],"answer":"correct value","explanation":"Step 1: ... Step 2: ... Step 3: ...","marks":${marks},"topic":"${topic}","exam_year":"May 2023"}`
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
         model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
-        temperature: 0.3, max_tokens: 500,
+        temperature: 0.7 + Math.random() * 0.3, max_tokens: 800,
         // response_format removed to avoid LaTeX JSON conflicts 
     });
     
