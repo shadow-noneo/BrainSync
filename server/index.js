@@ -422,33 +422,21 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1, maxAttempts
   const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `You are an expert MU (Mumbai University) NEP 2020 Engineering Professor. Generate ONE real exam-style question (${marks} Marks) exactly like MU end semester papers.
+    const prompt = `You are a Mumbai University exam question generator. Generate ONE MCQ question.
 
-Subject: ${subject}. Topic: ${topic}.
+SUBJECT: ${subject}
+TOPIC: ${topic}  
+MARKS: ${marks}
 
-STRICT RULES:
-1. Output ONLY valid JSON. No extra text.
-2. The question must be a FULL problem-solving question like MU end sem papers (NOT a simple MCQ definition).
-3. For ${marks} marks question, the complexity should match: 3-4 marks = medium derivation, 5 marks = full derivation, 7-8 marks = long proof or two-part problem.
-4. The 4 options must be ONLY the FINAL ANSWER of the problem (not steps, not definitions).
-5. ALL math MUST use proper LaTeX wrapped in $ signs.
-ABSOLUTELY FORBIDDEN — if you write any of these your response is invalid:
-- NEVER write f\\frac — always write \\frac
-- NEVER write f\\pi — always write \\pi  
-- NEVER write f\\theta — always write \\theta
-- NEVER write heta — always write \\theta
-- NEVER write sinheta — always write \\sin\\theta
-- NEVER write cosheta — always write \\cos\\theta
-- NEVER write sinleft — always write \\sin\\left
-- NEVER write \\text{m} or \\text{kg} — write units as plain text: m, kg, MPa
-- NEVER write extm, extC, extV, extg — write units as plain text
-- NEVER write infty — always write \\infty
-- NEVER write langle or rangle — always write \\langle and \\rangle CRITICAL: The letter f must NEVER appear before any backslash command. Write \\frac NOT f\\frac. Write \\frac NOT f\\frac. Write \\sqrt NOT f\\sqrt. Write \\left NOT f\\left. Write \\right NOT f\\right. Write \\infty NOT infty. Write \\psi NOT psi. Write \\hbar NOT hbar. Units like MPa, g/cm^3 must be written as plain text NOT using \\text{}.
-6. The explanation must show complete step-by-step solution.
-7. exam_year must be randomly chosen from: May 2019, Nov 2019, May 2022, Nov 2022, May 2023, Nov 2023, May 2024, Nov 2024.
+STRICT OUTPUT RULES:
+1. Return ONLY valid JSON, nothing else
+2. Options must be SHORT (under 30 chars each) - just the final answer value
+3. For math: use simple notation like x^2, sqrt(x), pi, theta - NO LaTeX backslashes in options
+4. Question can have LaTeX with $ signs
+5. Keep explanation under 100 words
 
-JSON Schema:
-{"question": "Solve using variation of parameters: $y'' - 5y' + 6y = e^{2x}$", "options": ["$y = c_1e^{2x} + c_2e^{3x} - xe^{2x}$", "$y = c_1e^{2x} + c_2e^{3x} + xe^{2x}$", "$y = c_1e^{2x} - c_2e^{3x} + xe^{2x}$", "$y = c_1e^{2x} + c_2e^{3x} + e^{2x}$"], "answer": "$y = c_1e^{2x} + c_2e^{3x} - xe^{2x}$", "explanation": "Step 1: Find CF... Step 2: Find W... Step 3: Find PI...", "marks": ${marks}, "topic": "${topic}", "exam_year": "May 2023"}`
+Return this exact JSON structure:
+{"question":"question text here","options":["option A","option B","option C","option D"],"answer":"correct option text","explanation":"brief explanation","marks":${marks},"topic":"${topic}","exam_year":"May 2023"}`
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
@@ -457,11 +445,14 @@ JSON Schema:
         // response_format removed to avoid LaTeX JSON conflicts 
     });
     
-    let raw = res.choices[0].message.content;
-    // Extract JSON from response
-    const jsonMatch = raw.match(/{[sS]*}/);
-    if (!jsonMatch) throw new Error('No JSON found');
-    let data = JSON.parse(jsonMatch[0]);
+    let raw = res.choices[0].message.content.trim();
+    // Remove markdown code blocks if present
+    raw = raw.replace(/```json/g,'').replace(/```/g,'').trim();
+    // Extract JSON object
+    const jsonStart = raw.indexOf('{');
+    const jsonEnd = raw.lastIndexOf('}') + 1;
+    if(jsonStart === -1 || jsonEnd === 0) throw new Error('No JSON');
+    let data = JSON.parse(raw.substring(jsonStart, jsonEnd));
 
     // 🟢 SERVER-SIDE CLEANING
     data.question = cleanLatex(data.question);
