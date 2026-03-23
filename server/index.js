@@ -422,28 +422,28 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1, maxAttempts
   const marks = [3, 4, 5, 7, 8][Math.floor(Math.random() * 5)];
   
   try {
-    const prompt = `You are an expert Mumbai University (MU) NEP 2020 exam question setter for first year engineering.
+    const prompt = `You are a Mumbai University first year engineering exam question setter.
 
-SUBJECT: ${subject}
-TOPIC: ${topic}
-MARKS: ${marks}
-EXAM: Mumbai University End Semester Examination
+Generate ONE MCQ for: SUBJECT=${subject}, TOPIC=${topic}, MARKS=${marks}
 
-Generate ONE question exactly like MU end semester papers. For ${marks} marks:
-- 3 marks = short derivation or definition with formula
-- 4-5 marks = medium numerical problem with steps  
-- 7-8 marks = long derivation or multi-part problem
+CRITICAL JSON RULES - YOUR RESPONSE WILL BE REJECTED IF YOU BREAK THESE:
+- Return ONLY a JSON object, no other text
+- Do NOT use backslash in ANY string value
+- Do NOT use LaTeX commands like \\frac or \\theta
+- Write math using plain text: "x^2", "sqrt(x)", "pi", "theta", "sigma", "1/2", "n^2"
+- Example good option: "v = sqrt(2gh)" not "$v = \\sqrt{2gh}$"
+- Example good question: "Calculate the value of x^2 + 2x + 1 when x=3"
 
-RULES:
-1. Return ONLY valid JSON with these exact keys
-2. Question must be a real problem-solving question NOT a definition
-3. Options must be the FINAL ANSWER only (short, under 40 chars)
-4. Use $ signs for math: $\\frac{1}{2}mv^2$ NOT f\\frac
-5. explanation must have 3-4 clear steps
-6. Make options realistic - wrong answers should be close to correct
-
-JSON:
-{"question":"full question text","options":["A value","B value","C value","D value"],"answer":"correct value","explanation":"Step 1: ... Step 2: ... Step 3: ...","marks":${marks},"topic":"${topic}","exam_year":"May 2023"}`
+JSON format (copy this structure exactly):
+{
+  "question": "A particle of mass 2kg moves with velocity 5 m/s. Calculate its kinetic energy.",
+  "options": ["25 J", "50 J", "100 J", "10 J"],
+  "answer": "25 J",
+  "explanation": "KE = (1/2)mv^2 = (1/2)(2)(5^2) = 25 J",
+  "marks": ${marks},
+  "topic": "${topic}",
+  "exam_year": "May 2023"
+}`
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
