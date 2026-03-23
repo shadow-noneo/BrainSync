@@ -440,8 +440,8 @@ JSON Schema:
     
     const res = await groq.chat.completions.create({ 
         messages: [{ role: "user", content: prompt }], 
-        model: attempt === 1 ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant",
-        temperature: 0.5,
+        model: "llama-3.1-8b-instant",
+        temperature: 0.3, max_tokens: 800,
         response_format: { type: "json_object" } 
     });
     
