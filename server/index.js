@@ -427,13 +427,24 @@ async function generateAIQuestion(subject, topicsArray, attempt = 1, maxAttempts
 Generate ONE MCQ for: SUBJECT=${subject}, TOPIC=${topic}, MARKS=${marks}
 Random seed (use this to make a UNIQUE question every time): ${Math.random().toString(36).substring(2,8)}-${Date.now() % 10000}
 
-CRITICAL JSON RULES - YOUR RESPONSE WILL BE REJECTED IF YOU BREAK THESE:
+CRITICAL JSON RULES:
 - Return ONLY a JSON object, no other text
-- Do NOT use backslash in ANY string value
-- Do NOT use LaTeX commands like \\frac or \\theta
-- Write math using plain text: "x^2", "sqrt(x)", "pi", "theta", "sigma", "1/2", "n^2"
-- Example good option: "v = sqrt(2gh)" not "$v = \\sqrt{2gh}$"
-- Example good question: "Calculate the value of x^2 + 2x + 1 when x=3"
+- Do NOT use backslash characters anywhere
+- Use this SPECIAL MATH NOTATION instead of LaTeX:
+  * Fractions: FRAC(a,b) means a/b  e.g. FRAC(1,2) = one half
+  * Square root: SQRT(x)  e.g. SQRT(2)
+  * Superscript: x^2, e^x, 10^3
+  * Greek letters: write as THETA, SIGMA, ALPHA, BETA, OMEGA, PHI, LAMBDA, MU, PI, DELTA
+  * Integral: INT(a,b,f(x)dx)
+  * Sum: SUM(i=0,n,f(i))
+  * Infinity: INF
+  * Multiplication dot: DOT
+  * Plus minus: PLUSMINUS
+  * Approximately: APPROX
+  * Vector: VEC(x)
+  * Example question: "Calculate FRAC(1,2)mv^2 where m=2kg and v=5 m/s"
+  * Example option: "FRAC(hbar^2,2m) SQRT(2mE)"
+  * Example: "sin(THETA) = FRAC(opposite,hypotenuse)"
 
 JSON format (copy this structure exactly):
 {

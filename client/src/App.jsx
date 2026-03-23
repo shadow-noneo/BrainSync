@@ -49,54 +49,82 @@ const MathText = ({ text }) => {
   if (!text) return <span>...</span>;
   try {
     let t = String(text);
+    
+    // Convert custom notation to LaTeX
+    // FRAC(a,b) → \frac{a}{b}
+    t = t.replace(/FRAC\(([^,]+),([^)]+)\)/g, '\\frac{$1}{$2}');
+    // SQRT(x) → \sqrt{x}
+    t = t.replace(/SQRT\(([^)]+)\)/g, '\\sqrt{$1}');
+    // Greek letters
+    t = t.split('THETA').join('\\theta');
+    t = t.split('SIGMA').join('\\sigma');
+    t = t.split('ALPHA').join('\\alpha');
+    t = t.split('BETA').join('\\beta');
+    t = t.split('OMEGA').join('\\omega');
+    t = t.split('LAMBDA').join('\\lambda');
+    t = t.split('DELTA').join('\\delta');
+    t = t.split('GAMMA').join('\\gamma');
+    t = t.split('EPSILON').join('\\epsilon');
+    t = t.split('PHI').join('\\phi');
+    t = t.split('PSI').join('\\psi');
+    t = t.split('MU').join('\\mu');
+    t = t.split('ETA').join('\\eta');
+    t = t.split('KAPPA').join('\\kappa');
+    t = t.split('NU').join('\\nu');
+    t = t.split('XI').join('\\xi');
+    t = t.split('TAU').join('\\tau');
+    t = t.split('UPSILON').join('\\upsilon');
+    t = t.split('CHI').join('\\chi');
+    t = t.split('ZETA').join('\\zeta');
+    // Capital Greek
+    t = t.split('BIGTHETA').join('\\Theta');
+    t = t.split('BIGSIGMA').join('\\Sigma');
+    t = t.split('BIGDELTA').join('\\Delta');
+    t = t.split('BIGOMEGA').join('\\Omega');
+    t = t.split('BIGGAMMA').join('\\Gamma');
+    t = t.split('BIGPHI').join('\\Phi');
+    t = t.split('BIGPSI').join('\\Psi');
+    t = t.split('BIGLAMBDA').join('\\Lambda');
+    // Special symbols  
+    t = t.split('INF').join('\\infty');
+    t = t.split('DOT').join('\\cdot');
+    t = t.split('PLUSMINUS').join('\\pm');
+    t = t.split('APPROX').join('\\approx');
+    t = t.split('HBAR').join('\\hbar');
+    t = t.split('NABLA').join('\\nabla');
+    t = t.split('PARTIAL').join('\\partial');
+    t = t.split('TIMES').join('\\times');
+    t = t.split('LEQQ').join('\\leq');
+    t = t.split('GEQQ').join('\\geq');
+    // VEC(x) → \vec{x}
+    t = t.replace(/VEC\(([^)]+)\)/g, '\\vec{$1}');
+    // INT(a,b,expr) → \int_{a}^{b} expr
+    t = t.replace(/INT\(([^,]+),([^,]+),([^)]+)\)/g, '\\int_{$1}^{$2} $3');
+    // SUM(i=0,n,expr) → \sum_{i=0}^{n} expr
+    t = t.replace(/SUM\(([^,]+),([^,]+),([^)]+)\)/g, '\\sum_{$1}^{$2} $3');
+    
+    // Fix any remaining f\frac patterns
     t = t.replace(/f\\frac/g, '\\frac');
     t = t.replace(/f\\sqrt/g, '\\sqrt');
-    t = t.replace(/f\\left/g, '\\left');
-    t = t.replace(/f\\right/g, '\\right');
-    t = t.replace(/f\\pi/g, '\\pi');
-    t = t.replace(/f\\theta/g, '\\theta');
-    t = t.replace(/f\\sin/g, '\\sin');
-    t = t.replace(/f\\cos/g, '\\cos');
-    t = t.replace(/f\\sigma/g, '\\sigma');
-    t = t.replace(/f\\hbar/g, '\\hbar');
-    t = t.replace(/f\\psi/g, '\\psi');
-    t = t.replace(/f\\int/g, '\\int');
-    t = t.replace(/f\\infty/g, '\\infty');
-    t = t.replace(/f\\alpha/g, '\\alpha');
-    t = t.replace(/f\\beta/g, '\\beta');
-    t = t.replace(/f\\gamma/g, '\\gamma');
-    t = t.replace(/f\\omega/g, '\\omega');
-    t = t.replace(/f\\Gamma/g, '\\Gamma');
-    t = t.replace(/f\\Delta/g, '\\Delta');
-    t = t.replace(/f\\Phi/g, '\\Phi');
-    t = t.replace(/f\\Psi/g, '\\Psi');
-    t = t.replace(/f\\langle/g, '\\langle');
-    t = t.replace(/f\\rangle/g, '\\rangle');
-    t = t.replace(/f\\vec/g, '\\vec');
-    t = t.replace(/f\\hat/g, '\\hat');
-    t = t.replace(/f\\nabla/g, '\\nabla');
-    t = t.replace(/f\\partial/g, '\\partial');
-    t = t.replace(/f\\cdot/g, '\\cdot');
-    t = t.replace(/f\\times/g, '\\times');
-    t = t.replace(/f\\approx/g, '\\approx');
-    t = t.replace(/f\\begin/g, '\\begin');
-    t = t.replace(/f\\end/g, '\\end');
-    t = t.replace(/f\\lim/g, '\\lim');
-    t = t.replace(/f\\log/g, '\\log');
-    t = t.replace(/sinheta/g, '\\sin\\theta');
-    t = t.replace(/cosheta/g, '\\cos\\theta');
-    t = t.replace(/tanheta/g, '\\tan\\theta');
-    t = t.replace(/([^a-zA-Z\\])heta/g, '$1\\theta');
-    t = t.replace(/extMPa/g, 'MPa');
-    t = t.replace(/extm/g, 'm');
-    t = t.replace(/extC/g, 'C');
-    t = t.replace(/extV/g, 'V');
-    t = t.replace(/extg/g, 'g');
-    t = t.replace(/extkg/g, 'kg');
+    
+    // Wrap math expressions in $ for rendering
+    // If no $ signs, wrap everything that looks like math
+    if (!t.includes('$')) {
+      // Wrap known math patterns
+      t = t.replace(/(\\[a-zA-Z]+{[^}]*})/g, '$$$1$$');
+      t = t.replace(/(\\[a-zA-Z]+)/g, '$$$1$$');
+      t = t.replace(/([a-zA-Z0-9]+^[{0-9a-zA-Z}]+)/g, '$$$1$$');
+    }
+    
     t = t.split('\\(').join('$').split('\\)').join('$').split('\\[').join('$').split('\\]').join('$').split('$$').join('$');
+    
     const parts = t.split('$');
-    return <span style={{fontSize:'1.1em',wordBreak:'break-word',lineHeight:'1.6'}}>{parts.map((p,i)=>{if(!p)return null;if(i%2===1)return <span key={i}><InlineMath math={p} renderError={()=><span>{p}</span>}/></span>;return <span key={i}>{p}</span>;})}</span>;
-  } catch(e){return <span>{text}</span>;}
+    return <span style={{fontSize:'1.1em',wordBreak:'break-word',lineHeight:'1.8'}}>{parts.map((p,i)=>{
+      if(!p) return null;
+      if(i%2===1) return <span key={i}><InlineMath math={p} renderError={()=><span style={{color:'#FFD60A'}}>{p}</span>}/></span>;
+      return <span key={i}>{p}</span>;
+    })}</span>;
+  } catch(e){ return <span>{text}</span>; }
 };
 
 const compressImage = (file, callback) => {
