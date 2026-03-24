@@ -196,7 +196,118 @@ function App() {
   const toggleTopic = (prompt) => { setSelectedTopics(prev => prev.includes(prompt) ? prev.filter(t => t !== prompt) : [...prev, prompt]); };
   const toggleSubject = (sub) => { if(expandedSubject === sub) { setExpandedSubject(null); } else { setExpandedSubject(sub); } };
   const getCorrectIndex = () => roundResult?.correctIndex ?? 0;
-  const downloadPDF = () => { if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save."); const doc = new jsPDF(); let y = 20; doc.setFontSize(22); doc.text("BrainSync - Quiz Report", 20, y); y += 10; doc.setFontSize(10); doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y); y += 20; quizHistory.forEach((q, i) => { if(y > 270) { doc.addPage(); y = 20; } let plainQ = q.question.replace(/\$/g, ''); doc.text(`Q${i+1}. ${plainQ}`, 20, y); y += 10; q.options.forEach((opt, idx) => { if(y > 280) { doc.addPage(); y = 20; } let plainOpt = opt.replace(/\$/g, ''); doc.text(`   (${getLetter(idx)}) ${plainOpt}`, 20, y); y += 6; }); y += 8; }); doc.save("BrainSync_Quiz.pdf"); toast.success("PDF Downloaded! 📥"); };
+  const downloadPDF = () => {
+    if (!quizHistory || quizHistory.length === 0) return toast.error("No questions to save.");
+    const doc = new jsPDF();
+    const pageW = 210;
+    const margin = 15;
+    const maxW = pageW - margin * 2;
+    let y = 20;
+
+    const addText = (text, size, color, bold) => {
+      doc.setFontSize(size || 10);
+      doc.setTextColor(color || '#000000');
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      const clean = String(text).replace(/\$/g, '').replace(/\\[a-zA-Z]+/g, '').replace(/[{}]/g, '').trim();
+      const lines = doc.splitTextToSize(clean, maxW);
+      lines.forEach(line => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.text(line, margin, y);
+        y += size ? size * 0.5 : 5;
+      });
+      y += 2;
+    };
+
+    // Header
+    doc.setFillColor(20, 20, 22);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setFontSize(18);
+    doc.setTextColor('#FFFFFF');
+    doc.setFont('helvetica', 'bold');
+    doc.text('BrainSync - Quiz Report', margin, 16);
+    doc.setFontSize(9);
+    doc.setTextColor('#AAAAAA');
+    doc.text('Generated: ' + new Date().toLocaleDateString() + ' | Total Questions: ' + quizHistory.length, margin, 22);
+    y = 35;
+
+    quizHistory.forEach((q, i) => {
+      if (y > 250) { doc.addPage(); y = 20; }
+
+      // Question number box
+      doc.setFillColor(10, 132, 255);
+      doc.roundedRect(margin, y - 4, maxW, 8, 2, 2, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor('#FFFFFF');
+      doc.setFont('helvetica', 'bold');
+      doc.text('Q' + (i+1) + '  |  ' + (q.marks || 3) + ' Marks  |  ' + (q.exam_year || ''), margin + 2, y + 1);
+      y += 10;
+
+      // Question text
+      addText(q.question, 10, '#111111', false);
+      y += 2;
+
+      // Options
+      q.options && q.options.forEach((opt, idx) => {
+        const letter = getLetter(idx);
+        const isCorrect = idx === q.correctIndex;
+        if (isCorrect) {
+          doc.setFillColor(220, 255, 220);
+          const optLines = doc.splitTextToSize(String(opt).replace(/\$/g,'').replace(/\\[a-zA-Z]+/g,'').replace(/[{}]/g,'').trim(), maxW - 10);
+          doc.roundedRect(margin, y - 4, maxW, optLines.length * 5 + 4, 1, 1, 'F');
+        }
+        doc.setFontSize(9);
+        doc.setTextColor(isCorrect ? '#006600' : '#333333');
+        doc.setFont('helvetica', isCorrect ? 'bold' : 'normal');
+        const optClean = '(' + letter + ') ' + String(opt).replace(/\$/g,'').replace(/\\[a-zA-Z]+/g,'').replace(/[{}]/g,'').trim();
+        const optLines = doc.splitTextToSize(optClean, maxW - 5);
+        optLines.forEach(line => {
+          if (y > 275) { doc.addPage(); y = 20; }
+          doc.text(line, margin + 3, y);
+          y += 5;
+        });
+      });
+      y += 4;
+
+      // Explanation
+      if (q.explanation) {
+        doc.setFillColor(245, 245, 255);
+        doc.setFontSize(8);
+        doc.setTextColor('#444488');
+        doc.setFont('helvetica', 'bold');
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.text('Solution:', margin, y);
+        y += 5;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#333333');
+        const expClean = String(q.explanation).replace(/\$/g,'').replace(/\\[a-zA-Z]+/g,'').replace(/[{}]/g,'').trim();
+        const expLines = doc.splitTextToSize(expClean, maxW);
+        expLines.forEach(line => {
+          if (y > 275) { doc.addPage(); y = 20; }
+          doc.text(line, margin, y);
+          y += 4.5;
+        });
+      }
+
+      y += 8;
+      // Divider
+      if (i < quizHistory.length - 1) {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, y - 4, pageW - margin, y - 4);
+      }
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor('#AAAAAA');
+      doc.text('BrainSync | Page ' + i + ' of ' + pageCount, pageW/2, 290, { align: 'center' });
+    }
+
+    doc.save('BrainSync_Quiz_Report.pdf');
+    toast.success("PDF Downloaded! 📥");
+  };
   const formatRecTime = (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
 
   useEffect(() => { if (roomCode && username) { socket.emit('rejoin_room', { roomCode, username }); unlockAudio(); } }, []);
